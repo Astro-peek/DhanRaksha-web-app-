@@ -92,22 +92,7 @@ BEGIN
 END;
 $$;
 
--- --- FUNCTION 3: reverse_vault_debit ---
--- Reverses a failed withdrawal and changes the transaction state.
-CREATE OR REPLACE FUNCTION public.reverse_vault_debit(
-  p_transaction_id UUID
-)
-RETURNS JSON
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-  v_transaction public.vault_transactions%ROWTYPE;
-  v_new_balance DECIMAL;
-END;
-$$;
 
--- Wait! Let's write the complete body of reverse_vault_debit as specified:
 CREATE OR REPLACE FUNCTION public.reverse_vault_debit(
   p_transaction_id UUID
 )
