@@ -477,70 +477,74 @@ export default function Lending() {
               return (
                 <div 
                   key={lender.id} 
-                  className="p-5 border border-outline-variant/30 rounded-2xl bg-surface-container-lowest hover:border-primary/20 hover:shadow-md shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-5 transition-all duration-200"
+                  className="p-5 border border-outline-variant/30 rounded-2xl bg-surface-container-lowest hover:border-primary/20 hover:shadow-md shadow-sm transition-all duration-200"
                 >
-                  <div className="flex-1 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div 
-                        className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white text-sm shrink-0 shadow-sm"
-                        style={{ backgroundColor: `#${lender.logo_color}` }}
-                      >
-                        {lender.logo_initials}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-extrabold text-on-surface text-sm">{lender.name}</h4>
-                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-primary-fixed text-on-primary-fixed">
-                            {lender.type}
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+                    <div className="flex-1 min-w-0 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white text-sm shrink-0 shadow-sm"
+                          style={{ backgroundColor: `#${lender.logo_color}` }}
+                        >
+                          {lender.logo_initials}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-extrabold text-on-surface text-sm break-words">{lender.name}</h4>
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-primary-fixed text-on-primary-fixed">
+                              {lender.type}
+                            </span>
+                            {lender.accepts_gig_cert && (
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-secondary-container/30 text-on-secondary-container flex items-center gap-0.5">
+                                <span className="material-symbols-outlined text-[10px]">verified_user</span>
+                                Gig Cert OK
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-on-surface-variant font-mono break-all">
+                            {l.rbiRegistered}: {lender.rbi_registration}
                           </span>
-                          {lender.accepts_gig_cert && (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-secondary-container/30 text-on-secondary-container flex items-center gap-0.5">
-                              <span className="material-symbols-outlined text-[10px]">verified_user</span>
-                              Gig Cert OK
+                        </div>
+                      </div>
+                      
+                      <p className="text-xs text-on-surface-variant leading-relaxed">
+                        {lang === 'hi' ? lender.description_hi : lender.description_en}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-end lg:items-center gap-4 lg:gap-5">
+                      <div className="grid grid-cols-3 gap-4 border-t sm:border-t-0 sm:border-l border-outline-variant/30 pt-4 sm:pt-0 sm:pl-6 min-w-0">
+                        <div>
+                          <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">{l.emiTitle}</span>
+                          <p className="text-sm font-black text-on-surface mt-0.5">{formatINR(dynamicEmi)}</p>
+                          {isTenureCapped && (
+                            <span className="text-[8px] text-error font-semibold leading-none mt-0.5 block">
+                              (Max {lender.max_tenure_months}m)
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] text-on-surface-variant font-mono">
-                          {l.rbiRegistered}: {lender.rbi_registration}
-                        </span>
+                        <div>
+                          <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Rate</span>
+                          <p className="text-sm font-black text-on-surface mt-0.5">{lender.interest_rate_annual}%</p>
+                        </div>
+                        <div>
+                          <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Proc. Fee</span>
+                          <p className="text-sm font-bold text-on-surface mt-0.5">
+                            {lender.processing_fee_pct > 0 ? `${lender.processing_fee_pct}%` : 'Free'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0">
+                        <button
+                          onClick={() => handleApplyClick(lender)}
+                          className="w-full sm:w-auto px-4 py-2.5 bg-primary hover:bg-primary-container text-on-primary font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow active:scale-95 transition-all duration-200 whitespace-nowrap"
+                        >
+                          {l.applyBtn}
+                          <span className="material-symbols-outlined text-[16px]">arrow_outward</span>
+                        </button>
                       </div>
                     </div>
-                    
-                    <p className="text-xs text-on-surface-variant leading-relaxed">
-                      {lang === 'hi' ? lender.description_hi : lender.description_en}
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4 border-t md:border-t-0 md:border-l border-outline-variant/30 pt-4 md:pt-0 md:pl-6 shrink-0">
-                    <div>
-                      <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">{l.emiTitle}</span>
-                      <p className="text-sm font-black text-on-surface mt-0.5">{formatINR(dynamicEmi)}</p>
-                      {isTenureCapped && (
-                        <span className="text-[8px] text-error font-semibold leading-none mt-0.5 block">
-                          (Max {lender.max_tenure_months}m)
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Rate</span>
-                      <p className="text-sm font-black text-on-surface mt-0.5">{lender.interest_rate_annual}%</p>
-                    </div>
-                    <div>
-                      <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Proc. Fee</span>
-                      <p className="text-sm font-bold text-on-surface mt-0.5">
-                        {lender.processing_fee_pct > 0 ? `${lender.processing_fee_pct}%` : 'Free'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="shrink-0 pt-2 md:pt-0">
-                    <button
-                      onClick={() => handleApplyClick(lender)}
-                      className="w-full md:w-auto px-4 py-2.5 bg-primary hover:bg-primary-container text-on-primary font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow active:scale-95 transition-all duration-200"
-                    >
-                      {l.applyBtn}
-                      <span className="material-symbols-outlined text-[16px]">arrow_outward</span>
-                    </button>
                   </div>
                 </div>
               );

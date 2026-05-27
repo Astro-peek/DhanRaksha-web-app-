@@ -406,9 +406,9 @@ export default function Certificate() {
                 </div>
                 
                 {displayCert.blockchain_tx_hash && (
-                  <div className="flex justify-between items-center pt-2.5 border-t border-outline-variant/30">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 pt-2.5 border-t border-outline-variant/30">
                     <span className="text-xs font-bold text-on-surface-variant">Transaction Proof</span>
-                    <BlockchainBadge txHash={displayCert.blockchain_tx_hash} />
+                    <BlockchainBadge txHash={displayCert.blockchain_tx_hash} className="self-start sm:self-auto" />
                   </div>
                 )}
               </div>

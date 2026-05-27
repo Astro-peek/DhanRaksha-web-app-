@@ -22,6 +22,16 @@ const AppLayout = () => {
     return asDisplayText(user.mobile, 'Verified Account');
   };
 
+  const getAvatarInitial = () => {
+    const name = asDisplayText(user?.name, '').trim();
+    if (name) return name.charAt(0).toUpperCase();
+
+    const email = asDisplayText(user?.email, '').trim();
+    if (email) return email.charAt(0).toUpperCase();
+
+    return 'U';
+  };
+
   const isActive = (path) => location.pathname === path;
 
   // Auto-close sidebar on route change (mobile/tablet)
@@ -101,7 +111,7 @@ const AppLayout = () => {
           <div className="p-3 border-t border-outline-variant/30">
             <div className="flex items-center gap-3 p-3 rounded-xl bg-surface-container-low border border-outline-variant/20 shadow-sm mb-2">
               <div className="w-9 h-9 rounded-full bg-primary-container flex items-center justify-center text-on-primary-fixed font-bold text-xs shadow-inner shrink-0">
-                {getPhoneLabel().slice(-4)}
+                {getAvatarInitial()}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-on-surface truncate">
