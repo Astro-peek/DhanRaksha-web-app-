@@ -5,7 +5,7 @@ import { useAuth } from '../components/shared/AuthProvider';
 import { useLanguageStore } from '../lib/languageStore';
 import AmountInput from '../components/shared/AmountInput';
 import ConfirmModal from '../components/shared/ConfirmModal';
-import { formatINR } from '../lib/utils';
+import { formatINR, getErrorMessage } from '../lib/utils';
 import confetti from 'canvas-confetti';
 import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
@@ -196,7 +196,7 @@ export default function Vault() {
         toast.success(lang === 'hi' ? 'ऑटो-पे जनादेश शुरू हो गया!' : 'AutoPay mandate checkout initiated!');
       }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to initialize mandate checkout.');
+      toast.error(getErrorMessage(err, 'Failed to initialize mandate checkout.'));
     } finally {
       setSubmittingMandate(false);
     }
@@ -232,7 +232,7 @@ export default function Vault() {
     try {
       await withOfflineQueue(saveOperation, amountNum);
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to complete savings transaction.');
+      toast.error(getErrorMessage(err, 'Failed to complete savings transaction.'));
     } finally {
       setActionLoading(false);
     }
@@ -270,7 +270,7 @@ export default function Vault() {
         fetchTransactions(1, false);
       }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Withdrawal failed. Check balance or input fields.');
+      toast.error(getErrorMessage(err, 'Withdrawal failed. Check balance or input fields.'));
     } finally {
       setActionLoading(false);
     }

@@ -2,10 +2,16 @@ import axios from 'axios';
 import { supabase } from './supabase';
 import { toast } from 'react-hot-toast';
 import useAuthStore from '../store/authStore';
-import { getErrorMessage } from './utils';
+import { getErrorMessage, isApiRouteMissingError } from './utils';
 
+const normalizeBaseUrl = (raw) => {
+  if (!raw || typeof raw !== 'string') return '';
+  return raw.replace(/\/+$/, '');
+};
+
+const configuredBaseUrl = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
+  baseURL: configuredBaseUrl || 'http://localhost:3000',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -31,6 +37,7 @@ api.interceptors.response.use(
   async (error) => {
     const status = error.response?.status;
     const message = getErrorMessage(error, 'A critical server error occurred. Please try again later.');
+    const requestUrl = error?.config?.url || '';
 
     if (status === 401) {
       console.warn('Unauthorized access (401). Redirecting to login.');
@@ -46,6 +53,11 @@ api.interceptors.response.use(
       toast.error('Too many requests. Please slow down and try again.', {
         id: 'api-rate-limit',
         duration: 4000,
+      });
+    } else if (isApiRouteMissingError(error) && requestUrl.startsWith('/api/')) {
+      toast.error('API service not reachable. Check VITE_API_BASE_URL deployment setting.', {
+        id: 'api-base-url-misconfigured',
+        duration: 5000,
       });
     } else if (status >= 500) {
       toast.error(message, {

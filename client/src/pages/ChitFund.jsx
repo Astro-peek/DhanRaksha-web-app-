@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import api from '../lib/api';
 import { useLanguageStore } from '../lib/languageStore';
-import { formatINR } from '../lib/utils';
+import { formatINR, getErrorMessage } from '../lib/utils';
 import StatusBadge from '../components/shared/StatusBadge';
 import { toast } from 'react-hot-toast';
 
@@ -167,7 +167,7 @@ export default function ChitFund() {
         setActiveTab('my-groups');
       }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to join group. Check the token validity.');
+      toast.error(getErrorMessage(err, 'Failed to join group. Check the token validity.'));
     } finally {
       setSubmitting(false);
     }
@@ -185,7 +185,7 @@ export default function ChitFund() {
         setActiveTab('my-groups');
       }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to create group. Verify inputs.');
+      toast.error(getErrorMessage(err, 'Failed to create group. Verify inputs.'));
     } finally {
       setSubmitting(false);
     }

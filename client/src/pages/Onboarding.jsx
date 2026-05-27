@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import { toast } from 'react-hot-toast';
 import api from '../lib/api';
-import { getErrorMessage } from '../lib/utils';
+import { getErrorMessage, isApiRouteMissingError } from '../lib/utils';
 import useAuthStore from '../store/authStore';
 import useLanguageStore from '../store/languageStore';
+import { supabase } from '../lib/supabase';
 
 const Onboarding = () => {
   const navigate = useNavigate();
@@ -115,6 +116,46 @@ const Onboarding = () => {
       }
     } catch (error) {
       console.error('Onboarding submission error:', error);
+      // Fallback mode when backend API is not deployed/reachable but Supabase is available.
+      if (isApiRouteMissingError(error) && user?.id) {
+        try {
+          const { data: fallbackUser, error: fallbackErr } = await supabase
+            .from('users')
+            .update({
+              name: name.trim(),
+              language,
+              upi_id: upiId.trim(),
+              user_type: userType,
+              onboarding_completed: true
+            })
+            .eq('id', user.id)
+            .select()
+            .single();
+
+          if (fallbackErr) throw fallbackErr;
+
+          confetti({
+            particleCount: 150,
+            spread: 80,
+            origin: { y: 0.6 }
+          });
+
+          setUser(fallbackUser || {
+            ...user,
+            name: name.trim(),
+            language,
+            upi_id: upiId.trim(),
+            user_type: userType,
+            onboarding_completed: true
+          });
+          toast.success(language === 'hi' ? 'सेटअप पूरा हुआ!' : 'SafeKosh account setup complete!');
+          setTimeout(() => navigate('/dashboard'), 1200);
+          return;
+        } catch (fallbackError) {
+          console.error('Onboarding fallback failed:', fallbackError);
+        }
+      }
+
       const errMsg = getErrorMessage(error, 'Onboarding failed.');
       toast.error(errMsg);
       

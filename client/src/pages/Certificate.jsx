@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../lib/api';
 import { useAuth } from '../components/shared/AuthProvider';
 import { useLanguageStore } from '../lib/languageStore';
-import { formatINR } from '../lib/utils';
+import { formatINR, getErrorMessage } from '../lib/utils';
 import BlockchainBadge from '../components/shared/BlockchainBadge';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
@@ -139,7 +139,7 @@ export default function Certificate() {
         }
       }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to generate certificate.');
+      toast.error(getErrorMessage(err, 'Failed to generate certificate.'));
     } finally {
       setLoading(false);
     }

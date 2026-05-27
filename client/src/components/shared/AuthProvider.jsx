@@ -16,6 +16,38 @@ export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const buildSessionFallbackUser = (currentSession) => ({
+    id: currentSession.user.id,
+    email: currentSession.user.email || '',
+    mobile: currentSession.user.phone?.replace('+91', '') || '',
+    onboarding_completed: false
+  });
+
+  const fetchProfileWithFallback = async (currentSession) => {
+    try {
+      const res = await api.get('/api/auth/me', {
+        headers: { Authorization: `Bearer ${currentSession.access_token}` }
+      });
+      return res.data;
+    } catch (err) {
+      console.error('Failed to fetch user profile from API:', err);
+
+      try {
+        const { data: profile } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', currentSession.user.id)
+          .maybeSingle();
+
+        if (profile) return profile;
+      } catch (fallbackErr) {
+        console.error('Supabase profile fallback failed:', fallbackErr);
+      }
+
+      return buildSessionFallbackUser(currentSession);
+    }
+  };
+
   useEffect(() => {
     let active = true;
 
@@ -45,22 +77,8 @@ export const AuthProvider = ({ children }) => {
 
           if (active && currentSession) {
             setSession(currentSession);
-            // Fetch DB profile via /api/auth/me
-            try {
-              const res = await api.get('/api/auth/me', {
-                headers: { Authorization: `Bearer ${currentSession.access_token}` }
-              });
-              setUser(res.data);
-            } catch (err) {
-              console.error('Failed to fetch user profile:', err);
-              // Fallback user from session
-              setUser({
-                id: currentSession.user.id,
-                email: currentSession.user.email || '',
-                mobile: currentSession.user.phone?.replace('+91', '') || '',
-                onboarding_completed: false
-              });
-            }
+            const profile = await fetchProfileWithFallback(currentSession);
+            setUser(profile);
           }
         }
       } catch (error) {
@@ -83,20 +101,8 @@ export const AuthProvider = ({ children }) => {
         // Only fetch profile from server on actual sign-in events.
         // TOKEN_REFRESHED just updates the session token — no need to re-hit the server.
         if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-          try {
-            const res = await api.get('/api/auth/me', {
-              headers: { Authorization: `Bearer ${currentSession.access_token}` }
-            });
-            setUser(res.data);
-          } catch (err) {
-            console.error('Failed to fetch user profile on state change:', err);
-            setUser({
-              id: currentSession.user.id,
-              email: currentSession.user.email || '',
-              mobile: currentSession.user.phone?.replace('+91', '') || '',
-              onboarding_completed: false
-            });
-          }
+          const profile = await fetchProfileWithFallback(currentSession);
+          setUser(profile);
         }
         setLoading(false);
       } else {

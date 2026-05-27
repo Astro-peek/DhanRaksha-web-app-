@@ -9,7 +9,7 @@ import BlockchainBadge from '../components/shared/BlockchainBadge';
 import StatusBadge from '../components/shared/StatusBadge';
 import RupeeProgressBar from '../components/shared/RupeeProgressBar';
 import ConfirmModal from '../components/shared/ConfirmModal';
-import { formatINR } from '../lib/utils';
+import { formatINR, getErrorMessage } from '../lib/utils';
 import confetti from 'canvas-confetti';
 import { toast } from 'react-hot-toast';
 import { useChitRealtime } from '../hooks/useRealtime';
@@ -176,7 +176,7 @@ export default function ChitGroupDetail() {
         fetchGroupDetail();
       }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to submit contribution.');
+      toast.error(getErrorMessage(err, 'Failed to submit contribution.'));
     } finally {
       setActionLoading(false);
     }
@@ -192,7 +192,7 @@ export default function ChitGroupDetail() {
         fetchGroupDetail();
       }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to start auction.');
+      toast.error(getErrorMessage(err, 'Failed to start auction.'));
     } finally {
       setActionLoading(false);
     }
@@ -211,7 +211,7 @@ export default function ChitGroupDetail() {
         fetchBids();
       }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to submit discount bid.');
+      toast.error(getErrorMessage(err, 'Failed to submit discount bid.'));
     } finally {
       setActionLoading(false);
     }
@@ -238,7 +238,7 @@ export default function ChitGroupDetail() {
         fetchGroupDetail();
       }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to settle cycle.');
+      toast.error(getErrorMessage(err, 'Failed to settle cycle.'));
     } finally {
       setActionLoading(false);
     }

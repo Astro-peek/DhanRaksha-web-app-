@@ -38,6 +38,7 @@ export function asDisplayText(value, fallback = '') {
 
   if (typeof value === 'object') {
     if (typeof value.message === 'string' && value.message.trim()) return value.message;
+    if (typeof value.msg === 'string' && value.msg.trim()) return value.msg;
     if (typeof value.error === 'string' && value.error.trim()) return value.error;
   }
 
@@ -48,7 +49,12 @@ export function asDisplayText(value, fallback = '') {
  * Extract a user-safe error message from axios/supabase/native errors.
  */
 export function getErrorMessage(error, fallback = 'Something went wrong.') {
+  const nestedError = error?.response?.data?.error;
+  const nestedDetails = error?.response?.data?.details;
+
   const candidate =
+    (nestedError?.message || nestedError?.msg ? nestedError : null) ??
+    (Array.isArray(nestedDetails) && nestedDetails.length > 0 ? nestedDetails[0] : null) ??
     error?.response?.data?.error ??
     error?.response?.data?.message ??
     error?.message ??
@@ -56,4 +62,16 @@ export function getErrorMessage(error, fallback = 'Something went wrong.') {
 
   const text = asDisplayText(candidate, '').trim();
   return text || fallback;
+}
+
+export function isApiRouteMissingError(error) {
+  const status = error?.response?.status;
+  if (status !== 404) return false;
+
+  const message = getErrorMessage(error, '').toLowerCase();
+  return (
+    message.includes('page could not be found') ||
+    message.includes('requested path could not be found') ||
+    message.includes('not found')
+  );
 }
