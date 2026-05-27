@@ -13,6 +13,9 @@ export default defineConfig(({ mode }) => {
         registerType: 'autoUpdate',
         useCredentials: true,
         workbox: {
+          cleanupOutdatedCaches: true,
+          clientsClaim: true,
+          skipWaiting: true,
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
           runtimeCaching: [
             {

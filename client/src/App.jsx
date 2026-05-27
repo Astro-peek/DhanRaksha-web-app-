@@ -2,6 +2,7 @@ import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { Toaster as SonnerToaster } from 'sonner';
+import { isChunkLoadError, recoverFromChunkError } from './lib/chunkRecovery';
 
 // Authentication & Wrappers
 import { AuthProvider } from './components/shared/AuthProvider';
@@ -10,16 +11,26 @@ import AppLayout from './components/shared/AppLayout';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 import LoadingSpinner from './components/shared/LoadingSpinner';
 
+const lazyWithRecovery = (loader) =>
+  lazy(() =>
+    loader().catch(async (error) => {
+      if (isChunkLoadError(error)) {
+        await recoverFromChunkError();
+      }
+      throw error;
+    })
+  );
+
 // Lazy-loaded Page Screens
-const Login = lazy(() => import('./pages/Login'));
-const Onboarding = lazy(() => import('./pages/Onboarding'));
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Vault = lazy(() => import('./pages/Vault'));
-const ChitFund = lazy(() => import('./pages/ChitFund'));
-const Lending = lazy(() => import('./pages/Lending'));
-const Certificate = lazy(() => import('./pages/Certificate'));
-const ChitGroupDetail = lazy(() => import('./pages/ChitGroupDetail'));
-const Verify = lazy(() => import('./pages/Verify'));
+const Login = lazyWithRecovery(() => import('./pages/Login'));
+const Onboarding = lazyWithRecovery(() => import('./pages/Onboarding'));
+const Dashboard = lazyWithRecovery(() => import('./pages/Dashboard'));
+const Vault = lazyWithRecovery(() => import('./pages/Vault'));
+const ChitFund = lazyWithRecovery(() => import('./pages/ChitFund'));
+const Lending = lazyWithRecovery(() => import('./pages/Lending'));
+const Certificate = lazyWithRecovery(() => import('./pages/Certificate'));
+const ChitGroupDetail = lazyWithRecovery(() => import('./pages/ChitGroupDetail'));
+const Verify = lazyWithRecovery(() => import('./pages/Verify'));
 
 const FullPageLoader = () => (
   <div className="min-h-screen w-full flex items-center justify-center bg-brand-bg">
