@@ -30,7 +30,7 @@
 | State | Zustand (auth, vault, chit, app stores) |
 | Data Fetching | SWR + Axios with JWT interceptors |
 | Real-time | Supabase Realtime (PostgreSQL changes) |
-| Auth | Supabase Auth (OTP / phone-based) |
+| Auth | Supabase Auth (Email/Password & Google OAuth) |
 | Animations | canvas-confetti, CSS micro-animations |
 | Offline | Custom offline queue with retry logic |
 | PWA | Manifest + icons (192×192, 512×512) |
@@ -195,9 +195,6 @@ npm run test              # run all tests
 ### Auth (`/api/auth`)
 | Method | Path | Description |
 |---|---|---|
-| POST | `/send-otp` | Send OTP to mobile number |
-| POST | `/verify-otp` | Verify OTP and create session |
-| POST | `/refresh` | Refresh JWT session |
 | POST | `/logout` | Sign out globally |
 | GET | `/me` | Get full user profile + vault/chit status |
 | PUT | `/profile` | Update profile (name, UPI ID, language) |
@@ -298,7 +295,7 @@ The `.github/workflows/deploy.yml` pipeline runs on every push to `main`:
 
 | Route | Page | Description |
 |---|---|---|
-| `/login` | Login | OTP-based phone login |
+| `/login` | Login | Email/Password & Google OAuth login |
 | `/onboarding` | Onboarding | Name, UPI ID, user type setup |
 | `/dashboard` | Dashboard | Financial overview, quick actions |
 | `/vault` | Vault | Savings management, AutoPay setup |
