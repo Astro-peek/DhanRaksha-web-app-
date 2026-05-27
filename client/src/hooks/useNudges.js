@@ -21,7 +21,7 @@ export default function useNudges() {
           if (dismissed.includes(nudge.id)) return false;
           
           // Auto-dismiss after 24h
-          const createdAt = new Date(nudge.created_at);
+          const createdAt = new Date(nudge.delivered_at || nudge.created_at || now);
           const diffHours = (now - createdAt) / (1000 * 60 * 60);
           if (diffHours >= 24) {
             dismissed.push(nudge.id);

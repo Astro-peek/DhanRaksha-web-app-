@@ -15,7 +15,7 @@ router.get('/', requireAuth, async (req, res, next) => {
       .select('*')
       .eq('user_id', req.user.id)
       .is('seen_at', null)
-      .order('created_at', { ascending: false });
+      .order('delivered_at', { ascending: false });
 
     if (error) throw error;
 
