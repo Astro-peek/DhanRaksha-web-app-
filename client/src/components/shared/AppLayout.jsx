@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import useAppStore from '../../store/appStore';
+import { asDisplayText } from '../../lib/utils';
 
 const tabs = [
   { name: 'Dashboard', path: '/dashboard', icon: 'home', iconFilled: 'home' },
@@ -18,7 +19,7 @@ const AppLayout = () => {
 
   const getPhoneLabel = () => {
     if (!user) return 'User Account';
-    return user.mobile || 'Verified Account';
+    return asDisplayText(user.mobile, 'Verified Account');
   };
 
   const isActive = (path) => location.pathname === path;

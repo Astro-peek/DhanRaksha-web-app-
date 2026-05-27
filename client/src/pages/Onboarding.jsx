@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import { toast } from 'react-hot-toast';
 import api from '../lib/api';
+import { getErrorMessage } from '../lib/utils';
 import useAuthStore from '../store/authStore';
 import useLanguageStore from '../store/languageStore';
 
@@ -114,7 +115,7 @@ const Onboarding = () => {
       }
     } catch (error) {
       console.error('Onboarding submission error:', error);
-      const errMsg = error.response?.data?.error || error.message || 'Onboarding failed.';
+      const errMsg = getErrorMessage(error, 'Onboarding failed.');
       toast.error(errMsg);
       
       if (import.meta.env.DEV) {

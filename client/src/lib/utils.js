@@ -27,3 +27,33 @@ export function formatINR(amount) {
 export function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
+
+/**
+ * Safely convert unknown values into text suitable for React rendering.
+ */
+export function asDisplayText(value, fallback = '') {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+
+  if (typeof value === 'object') {
+    if (typeof value.message === 'string' && value.message.trim()) return value.message;
+    if (typeof value.error === 'string' && value.error.trim()) return value.error;
+  }
+
+  return fallback;
+}
+
+/**
+ * Extract a user-safe error message from axios/supabase/native errors.
+ */
+export function getErrorMessage(error, fallback = 'Something went wrong.') {
+  const candidate =
+    error?.response?.data?.error ??
+    error?.response?.data?.message ??
+    error?.message ??
+    error;
+
+  const text = asDisplayText(candidate, '').trim();
+  return text || fallback;
+}

@@ -2,6 +2,7 @@ import axios from 'axios';
 import { supabase } from './supabase';
 import { toast } from 'react-hot-toast';
 import useAuthStore from '../store/authStore';
+import { getErrorMessage } from './utils';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
@@ -29,7 +30,7 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const status = error.response?.status;
-    const message = error.response?.data?.message || error.message;
+    const message = getErrorMessage(error, 'A critical server error occurred. Please try again later.');
 
     if (status === 401) {
       console.warn('Unauthorized access (401). Redirecting to login.');
@@ -47,7 +48,7 @@ api.interceptors.response.use(
         duration: 4000,
       });
     } else if (status >= 500) {
-      toast.error(message || 'A critical server error occurred. Please try again later.', {
+      toast.error(message, {
         id: 'api-server-error',
         duration: 5000,
       });

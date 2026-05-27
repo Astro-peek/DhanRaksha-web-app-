@@ -7,7 +7,7 @@ import { useLanguageStore } from '../lib/languageStore';
 import { useNudges } from '../hooks/useNudges';
 import { PageSkeleton } from '../components/shared/LoadingSkeleton';
 import LanguageToggle from '../components/shared/LanguageToggle';
-import { formatINR } from '../lib/utils';
+import { asDisplayText, formatINR, getErrorMessage } from '../lib/utils';
 import confetti from 'canvas-confetti';
 import { toast } from 'react-hot-toast';
 
@@ -17,7 +17,7 @@ export default function Dashboard() {
   const { lang } = useLanguageStore();
   const { nudges, dismissNudge, nudgeRef, refresh: refreshNudges } = useNudges();
 
-  const [profile, setProfile] = useState(null);
+  const [profile, setProfile] = useState({ name: asDisplayText(user?.email, 'Rohan') });
   const [vaultAccount, setVaultAccount] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,11 +58,15 @@ export default function Dashboard() {
   const fetchProfile = useCallback(async () => {
     try {
       const res = await api.get('/api/auth/me');
-      setProfile(res.data);
+      const data = res?.data && typeof res.data === 'object' ? res.data : {};
+      setProfile({
+        ...data,
+        name: asDisplayText(data.name, asDisplayText(user?.email, 'Rohan')),
+      });
     } catch (err) {
       console.error('Error fetching profile:', err);
     }
-  }, []);
+  }, [user?.email]);
 
   const fetchVaultAccount = useCallback(async () => {
     try {
@@ -156,7 +160,7 @@ export default function Dashboard() {
         refreshNudges();
       }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Simulation failed. Ensure mandate status is active or pending.');
+      toast.error(getErrorMessage(err, 'Simulation failed. Ensure mandate status is active or pending.'));
     } finally {
       setSimulating(false);
     }
@@ -208,7 +212,7 @@ export default function Dashboard() {
               >
                 <div className="flex-1 pr-4">
                   <p className="text-sm font-semibold text-gray-800">
-                    {lang === 'hi' ? nudge.message_hi : nudge.message_en}
+                    {asDisplayText(lang === 'hi' ? nudge.message_hi : nudge.message_en, 'New notification')}
                   </p>
                 </div>
                 <button
@@ -353,7 +357,7 @@ export default function Dashboard() {
                       </div>
                       <div>
                         <p className="text-sm font-bold text-on-surface">
-                          {tx.note || (tx.direction === 'credit' ? 'Vault Credit' : 'Vault Debit')}
+                          {asDisplayText(tx.note, tx.direction === 'credit' ? 'Vault Credit' : 'Vault Debit')}
                         </p>
                         <p className="text-[10px] text-on-surface-variant">
                           {new Date(tx.created_at).toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-IN', {
@@ -373,7 +377,7 @@ export default function Dashboard() {
                         {tx.direction === 'credit' ? '+' : '-'}{formatINR(tx.amount)}
                       </p>
                       <span className="text-[9px] uppercase font-bold text-on-surface-variant bg-surface-container px-2 py-0.5 rounded">
-                        {tx.status}
+                        {asDisplayText(tx.status, 'success')}
                       </span>
                     </div>
                   </div>

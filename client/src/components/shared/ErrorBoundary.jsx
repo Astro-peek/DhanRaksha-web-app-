@@ -1,5 +1,7 @@
 import React from 'react';
 
+const isDevMode = typeof import.meta !== 'undefined' && Boolean(import.meta.env?.DEV);
+
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -36,7 +38,7 @@ class ErrorBoundary extends React.Component {
               We encountered a glitch while rendering this section. Rest assured, your funds and assets are completely safe.
             </p>
 
-            {process.env.NODE_ENV !== 'production' && this.state.error && (
+            {isDevMode && this.state.error && (
               <div className="text-left bg-slate-900 text-slate-100 p-4 rounded-input text-xs font-mono mb-6 overflow-x-auto max-h-40">
                 <p className="font-bold mb-1">{this.state.error.toString()}</p>
                 {this.state.errorInfo && <pre>{this.state.errorInfo.componentStack}</pre>}
