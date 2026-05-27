@@ -400,15 +400,15 @@ export default function Certificate() {
               <div className="space-y-3.5">
                 <div>
                   <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Blockchain Hash</span>
-                  <p className="text-xs font-mono font-bold text-on-surface break-all bg-surface-container-low p-2 rounded-lg border border-outline-variant mt-1">
+                  <p className="text-xs font-mono font-bold text-on-surface break-words bg-surface-container-low p-2 rounded-lg border border-outline-variant mt-1">
                     {displayCert.blockchain_hash}
                   </p>
                 </div>
                 
                 {displayCert.blockchain_tx_hash && (
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 pt-2.5 border-t border-outline-variant/30">
+                  <div className="flex flex-col gap-2 pt-2.5 border-t border-outline-variant/30 md:flex-row md:justify-between md:items-center">
                     <span className="text-xs font-bold text-on-surface-variant">Transaction Proof</span>
-                    <BlockchainBadge txHash={displayCert.blockchain_tx_hash} className="self-start sm:self-auto" />
+                    <BlockchainBadge txHash={displayCert.blockchain_tx_hash} className="self-start md:self-auto" />
                   </div>
                 )}
               </div>

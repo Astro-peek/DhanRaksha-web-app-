@@ -473,13 +473,16 @@ export default function Lending() {
               const isTenureCapped = loanTenure > lender.max_tenure_months;
               const activeTenure = isTenureCapped ? lender.max_tenure_months : loanTenure;
               const dynamicEmi = calculateEMI(loanAmount, lender.interest_rate_annual, activeTenure);
+              const description = String(lang === 'hi' ? lender.description_hi : lender.description_en)
+                .replace(/\s+/g, ' ')
+                .trim();
 
               return (
                 <div 
                   key={lender.id} 
-                  className="p-5 border border-outline-variant/30 rounded-2xl bg-surface-container-lowest hover:border-primary/20 hover:shadow-md shadow-sm transition-all duration-200"
+                  className="p-4 sm:p-5 border border-outline-variant/30 rounded-2xl bg-surface-container-lowest hover:border-primary/20 hover:shadow-md shadow-sm transition-all duration-200"
                 >
-                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+                  <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
                     <div className="flex-1 min-w-0 space-y-3">
                       <div className="flex items-center gap-3">
                         <div 
@@ -501,21 +504,23 @@ export default function Lending() {
                               </span>
                             )}
                           </div>
-                          <span className="text-[10px] text-on-surface-variant font-mono break-all">
-                            {l.rbiRegistered}: {lender.rbi_registration}
-                          </span>
                         </div>
                       </div>
                       
-                      <p className="text-xs text-on-surface-variant leading-relaxed">
-                        {lang === 'hi' ? lender.description_hi : lender.description_en}
+                      <p className="text-xs text-on-surface-variant leading-relaxed break-words whitespace-normal">
+                        {description}
+                      </p>
+
+                      <p className="text-[10px] text-on-surface-variant leading-4">
+                        <span className="font-semibold">{l.rbiRegistered}:</span>{' '}
+                        <span className="font-mono">{lender.rbi_registration}</span>
                       </p>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row sm:items-end lg:items-center gap-4 lg:gap-5">
-                      <div className="grid grid-cols-3 gap-4 border-t sm:border-t-0 sm:border-l border-outline-variant/30 pt-4 sm:pt-0 sm:pl-6 min-w-0">
+                    <div className="flex flex-col gap-4 xl:items-end xl:min-w-[320px]">
+                      <div className="grid grid-cols-3 gap-3 sm:gap-4 border-t border-outline-variant/30 pt-4 xl:pt-0 xl:pl-6 xl:border-t-0 xl:border-l min-w-0 w-full">
                         <div>
-                          <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">{l.emiTitle}</span>
+                          <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">EMI / mo</span>
                           <p className="text-sm font-black text-on-surface mt-0.5">{formatINR(dynamicEmi)}</p>
                           {isTenureCapped && (
                             <span className="text-[8px] text-error font-semibold leading-none mt-0.5 block">
@@ -535,10 +540,10 @@ export default function Lending() {
                         </div>
                       </div>
 
-                      <div className="shrink-0">
+                      <div className="shrink-0 w-full xl:w-auto">
                         <button
                           onClick={() => handleApplyClick(lender)}
-                          className="w-full sm:w-auto px-4 py-2.5 bg-primary hover:bg-primary-container text-on-primary font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow active:scale-95 transition-all duration-200 whitespace-nowrap"
+                          className="w-full xl:w-auto px-4 py-2.5 bg-primary hover:bg-primary-container text-on-primary font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow active:scale-95 transition-all duration-200 whitespace-nowrap"
                         >
                           {l.applyBtn}
                           <span className="material-symbols-outlined text-[16px]">arrow_outward</span>
