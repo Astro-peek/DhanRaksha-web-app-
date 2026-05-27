@@ -5,4 +5,4 @@ cmds = ["npm install"]
 cmds = ["npm start"]
 
 [variables]
-NODE_VERSION = "22"
+NODE_VERSION = "22.12.0"
