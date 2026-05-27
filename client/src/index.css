@@ -213,3 +213,11 @@
   @apply w-full px-4 py-2.5 bg-white/70 border border-outline-variant rounded-input shadow-sm transition-all duration-200 text-on-surface font-medium focus:bg-white focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10;
 }
 
+.input-premium.pl-10 {
+  padding-left: 2.75rem !important;
+}
+
+.input-premium.pr-10 {
+  padding-right: 2.75rem !important;
+}
+
