@@ -56,6 +56,7 @@ export const AuthProvider = ({ children }) => {
               // Fallback user from session
               setUser({
                 id: currentSession.user.id,
+                email: currentSession.user.email || '',
                 mobile: currentSession.user.phone?.replace('+91', '') || '',
                 onboarding_completed: false
               });
@@ -91,6 +92,7 @@ export const AuthProvider = ({ children }) => {
             console.error('Failed to fetch user profile on state change:', err);
             setUser({
               id: currentSession.user.id,
+              email: currentSession.user.email || '',
               mobile: currentSession.user.phone?.replace('+91', '') || '',
               onboarding_completed: false
             });

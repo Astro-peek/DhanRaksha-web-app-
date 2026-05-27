@@ -1,337 +1,287 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { Phone, Lock, ArrowRight, ShieldCheck, RefreshCw } from 'lucide-react';
-import api from '../lib/api';
+import { Mail, Lock, ArrowRight, ShieldCheck, RefreshCw, Eye, EyeOff, UserPlus, LogIn } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 
 const Login = () => {
   const navigate = useNavigate();
   const { setSession, setUser } = useAuthStore();
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [step, setStep] = useState('phone'); // 'phone' or 'otp'
+
+  const [mode, setMode] = useState('login'); // 'login' | 'signup'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [countdown, setCountdown] = useState(0);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
-  const otpInputsRef = useRef([]);
-
-  // Handle Resend OTP Countdown
+  // Handle Google OAuth redirect callback
   useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [countdown]);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        setSession(session);
+        try {
+          const { data: profile } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', session.user.id)
+            .maybeSingle();
 
-  const handleSendOtp = async (e) => {
-    if (e) e.preventDefault();
-    if (!phoneNumber || phoneNumber.length < 10 || !/^[6-9]\d{9}$/.test(phoneNumber)) {
-      toast.error('Please enter a valid 10-digit Indian mobile number (starts with 6-9).');
-      return;
-    }
+          if (profile) {
+            setUser(profile);
+            if (!profile.onboarding_completed) {
+              navigate('/onboarding');
+            } else {
+              navigate('/dashboard');
+            }
+          } else {
+            // New user via Google — create profile row
+            const { data: newProfile } = await supabase
+              .from('users')
+              .insert({
+                id: session.user.id,
+                email: session.user.email,
+                name: session.user.user_metadata?.full_name || null,
+              })
+              .select()
+              .single();
+            setUser(newProfile || { id: session.user.id, onboarding_completed: false });
+            navigate('/onboarding');
+          }
+        } catch (err) {
+          console.error('Profile fetch error:', err);
+          setUser({ id: session.user.id, onboarding_completed: false });
+          navigate('/onboarding');
+        }
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [setSession, setUser, navigate]);
 
-    setLoading(true);
-
+  // ── Google OAuth ──────────────────────────────────────────────────
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
     try {
-      // Trigger OTP sending through our backend API
-      const res = await api.post('/api/auth/send-otp', { mobile: phoneNumber });
-      if (res.data.success) {
-        toast.success(`OTP sent successfully to +91 ${phoneNumber}`);
-        setStep('otp');
-        setCountdown(30); // 30 second countdown
-        setOtp(['', '', '', '', '', '']);
-        // Focus first OTP field after state updates
-        setTimeout(() => {
-          if (otpInputsRef.current[0]) otpInputsRef.current[0].focus();
-        }, 100);
-      }
-    } catch (error) {
-      console.error('Error sending OTP:', error);
-      const errMsg = error.response?.data?.error || error.message || 'Failed to send OTP.';
-      toast.error(errMsg);
-      
-      // Simulate for local development if credentials not fully supplied in .env
-      if (import.meta.env.DEV) {
-        toast.custom((t) => (
-          <div className="bg-brand-dark text-white px-4 py-3 rounded-card shadow-premium border border-brand-primary flex flex-col space-y-1">
-            <span className="font-bold text-xs uppercase tracking-wider text-brand-secondary">Dev Helper Mode</span>
-            <span className="text-xs">OTP sign-in simulated for testing.</span>
-          </div>
-        ));
-        setStep('otp');
-        setCountdown(30);
-        setTimeout(() => {
-          if (otpInputsRef.current[0]) otpInputsRef.current[0].focus();
-        }, 100);
-      }
-    } finally {
-      setLoading(false);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
+          queryParams: { access_type: 'offline', prompt: 'consent' },
+        },
+      });
+      if (error) throw error;
+    } catch (err) {
+      toast.error(err.message || 'Google sign-in failed.');
+      setGoogleLoading(false);
     }
   };
 
-  const handleVerifyOtp = async () => {
-    const otpCode = otp.join('');
-    if (otpCode.length < 6 || !/^\d{6}$/.test(otpCode)) {
-      toast.error('Please enter a valid 6-digit OTP code.');
-      return;
-    }
+  // ── Email Login ───────────────────────────────────────────────────
+  const handleEmailLogin = async (e) => {
+    e.preventDefault();
+    if (!email || !password) { toast.error('Email and password are required.'); return; }
 
     setLoading(true);
-
     try {
-      const res = await api.post('/api/auth/verify-otp', {
-        mobile: phoneNumber,
-        otp: otpCode
-      });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
 
-      const { session, user } = res.data;
+      setSession(data.session);
 
-      // Set session in Supabase client
-      const { error: supabaseErr } = await supabase.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-      });
+      const { data: profile } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', data.user.id)
+        .maybeSingle();
 
-      if (supabaseErr) throw supabaseErr;
+      setUser(profile || { id: data.user.id, onboarding_completed: false });
 
-      // Store in authStore
-      setSession(session);
-      setUser(user);
-
-      toast.success('Successfully authenticated!');
-      
-      if (!user.onboarding_completed) {
+      if (!profile?.onboarding_completed) {
         navigate('/onboarding');
       } else {
         navigate('/dashboard');
       }
-    } catch (error) {
-      console.error('Error verifying OTP:', error);
-      const errMsg = error.response?.data?.error || error.message || 'Invalid or expired OTP.';
-      toast.error(errMsg);
-
-      // Simulate bypass in dev sandbox for prototype validation
-      if (import.meta.env.DEV) {
-        toast.success('Simulated dev bypass successful!');
-        // Locally fake trigger auth state using a placeholder session
-        const fakeSession = { access_token: 'fake', refresh_token: 'fake' };
-        setSession(fakeSession);
-        setUser({
-          id: '00000000-0000-0000-0000-000000000000',
-          mobile: phoneNumber,
-          name: null,
-          language: 'hi',
-          user_type: null,
-          onboarding_completed: false,
-          upi_id: null
-        });
-        navigate('/onboarding');
-      }
+    } catch (err) {
+      toast.error(err.message || 'Login failed. Check your credentials.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Auto-submit OTP when fully filled
-  useEffect(() => {
-    const otpCode = otp.join('');
-    if (otpCode.length === 6 && /^\d{6}$/.test(otpCode)) {
-      handleVerifyOtp();
-    }
-  }, [otp]);
+  // ── Email Signup ──────────────────────────────────────────────────
+  const handleEmailSignup = async (e) => {
+    e.preventDefault();
+    if (!email || !password) { toast.error('Email and password are required.'); return; }
+    if (password.length < 8) { toast.error('Password must be at least 8 characters.'); return; }
 
-  // Handle OTP digit changes
-  const handleOtpChange = (index, value) => {
-    // Only allow digits
-    const cleanedVal = value.replace(/\D/g, '');
-    if (!cleanedVal) {
-      const newOtp = [...otp];
-      newOtp[index] = '';
-      setOtp(newOtp);
-      return;
-    }
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+      });
+      if (error) throw error;
 
-    const digits = cleanedVal.split('');
-    const newOtp = [...otp];
-    
-    // Paste/entry logic
-    for (let i = 0; i < digits.length; i++) {
-      if (index + i < 6) {
-        newOtp[index + i] = digits[i];
+      if (data.user && !data.user.email_confirmed_at) {
+        toast.success('Check your email for a confirmation link!', { duration: 6000 });
+        return;
       }
-    }
-    setOtp(newOtp);
 
-    // Auto-advance cursor
-    const nextIndex = Math.min(index + digits.length, 5);
-    if (otpInputsRef.current[nextIndex]) {
-      otpInputsRef.current[nextIndex].focus();
-    }
-  };
-
-  // Handle Backspace
-  const handleOtpKeyDown = (index, e) => {
-    if (e.key === 'Backspace') {
-      if (!otp[index] && index > 0) {
-        const newOtp = [...otp];
-        newOtp[index - 1] = '';
-        setOtp(newOtp);
-        if (otpInputsRef.current[index - 1]) {
-          otpInputsRef.current[index - 1].focus();
-        }
-      } else {
-        const newOtp = [...otp];
-        newOtp[index] = '';
-        setOtp(newOtp);
+      // Auto-confirmed (e.g. disabled email confirmation in Supabase)
+      if (data.session) {
+        setSession(data.session);
+        setUser({ id: data.user.id, onboarding_completed: false });
+        navigate('/onboarding');
       }
+    } catch (err) {
+      toast.error(err.message || 'Sign-up failed. Try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-brand-bg relative overflow-hidden px-4">
-      {/* Decorative Blurry Orbs */}
-      <div className="absolute w-96 h-96 -top-20 -left-20 rounded-full bg-brand-primary/10 blur-3xl" />
-      <div className="absolute w-96 h-96 -bottom-20 -right-20 rounded-full bg-brand-secondary/10 blur-3xl" />
+      {/* Decorative orbs */}
+      <div className="absolute w-96 h-96 -top-20 -left-20 rounded-full bg-brand-primary/10 blur-3xl pointer-events-none" />
+      <div className="absolute w-96 h-96 -bottom-20 -right-20 rounded-full bg-brand-secondary/10 blur-3xl pointer-events-none" />
 
       <div className="max-w-md w-full glass-panel rounded-card shadow-premium p-8 relative z-10 border border-slate-200/40">
-        
+
         {/* Brand Header */}
         <div className="text-center mb-8">
-          <div className="gradient-primary w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg animate-pulse">
+          <div className="gradient-primary w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
             <ShieldCheck className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-extrabold text-brand-dark tracking-tight">SafeKosh</h1>
           <p className="text-sm text-brand-textMuted mt-1.5">
-            Decentralized savings, chit funds & credit registry
+            Decentralized savings, chit funds &amp; credit registry
           </p>
         </div>
 
-        {/* Step 1: Input Phone Number */}
-        {step === 'phone' && (
-          <form onSubmit={handleSendOtp} className="space-y-6 animate-fadeIn">
-            <div>
-              <label className="block text-sm font-bold text-brand-dark mb-2">
-                Apna mobile number dalein
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 font-bold text-base">
-                  +91
-                </div>
-                <input
-                  type="tel"
-                  required
-                  placeholder="Enter 10-digit number"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                  className="input-premium pl-14 text-base tracking-wide"
-                  disabled={loading}
-                />
-                <Phone className="absolute right-4 top-3.5 w-5 h-5 text-slate-400" />
-              </div>
-            </div>
+        {/* ── Google OAuth Button ── */}
+        <button
+          onClick={handleGoogleLogin}
+          disabled={googleLoading || loading}
+          id="google-signin-btn"
+          className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white border-2 border-slate-200 rounded-input hover:border-brand-primary/40 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-brand-dark text-sm mb-5 disabled:opacity-50"
+        >
+          {googleLoading ? (
+            <RefreshCw className="w-5 h-5 animate-spin text-brand-primary" />
+          ) : (
+            <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+          )}
+          Continue with Google
+        </button>
 
-            <div className="space-y-2">
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex items-center justify-center py-3.5 px-4 font-bold text-white rounded-input gradient-primary hover:gradient-hover transition-all duration-200 shadow-md focus:outline-none focus:ring-4 focus:ring-brand-primary/20 disabled:opacity-50"
-              >
-                {loading ? (
-                  <RefreshCw className="w-5 h-5 animate-spin mr-2" />
-                ) : (
-                  <>
-                    OTP Bhejo
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </>
-                )}
-              </button>
-              <p className="text-center text-xs text-brand-textMuted font-medium">
-                Koi password nahi. Sirf OTP.
-              </p>
-            </div>
-          </form>
-        )}
-
-        {/* Step 2: Input OTP Verification */}
-        {step === 'otp' && (
-          <div className="space-y-6 animate-fadeIn">
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <label className="block text-sm font-bold text-brand-dark">
-                  OTP Code
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setStep('phone')}
-                  className="text-xs text-brand-primary font-bold hover:underline"
-                >
-                  Change Number
-                </button>
-              </div>
-              
-              {/* 6 Digit Input Boxes */}
-              <div className="flex justify-between gap-2.5 mb-2">
-                {otp.map((digit, idx) => (
-                  <input
-                    key={idx}
-                    ref={(el) => (otpInputsRef.current[idx] = el)}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleOtpChange(idx, e.target.value)}
-                    onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                    className="w-12 h-14 text-center text-xl font-extrabold bg-white border-2 border-slate-200 rounded-lg focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 focus:outline-none transition-all"
-                    disabled={loading}
-                  />
-                ))}
-              </div>
-
-              <div className="flex justify-between items-center mt-4">
-                <span className="text-xs text-brand-textMuted font-medium">
-                  Sent to +91 {phoneNumber}
-                </span>
-                {countdown > 0 ? (
-                  <span className="text-xs font-bold text-brand-textMuted">
-                    Resend in {countdown}s
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleSendOtp}
-                    className="text-xs font-bold text-brand-primary hover:underline"
-                  >
-                    OTP nahi mila? Dobara bhejo
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <button
-              onClick={handleVerifyOtp}
-              disabled={loading}
-              className="w-full flex items-center justify-center py-3.5 px-4 font-bold text-white rounded-input gradient-dark hover:gradient-primary transition-all duration-200 shadow-md focus:outline-none focus:ring-4 focus:ring-brand-primary/20 disabled:opacity-50"
-            >
-              {loading ? (
-                <RefreshCw className="w-5 h-5 animate-spin mr-2" />
-              ) : (
-                <>
-                  OTP Verify Karo
-                  <ShieldCheck className="w-4 h-4 ml-2" />
-                </>
-              )}
-            </button>
-          </div>
-        )}
-
-        {/* Footer Security Shield */}
-        <div className="mt-8 pt-6 border-t border-slate-200/40 flex items-center justify-center gap-2 text-[10px] text-brand-textMuted font-bold uppercase tracking-wider">
-          <ShieldCheck className="w-4 h-4 text-brand-secondary" />
-          End-to-End Encrypted Vaults
+        {/* Divider */}
+        <div className="flex items-center gap-3 mb-5">
+          <div className="flex-1 h-px bg-slate-200" />
+          <span className="text-xs font-bold text-brand-textMuted uppercase tracking-wider">or</span>
+          <div className="flex-1 h-px bg-slate-200" />
         </div>
 
+        {/* ── Mode Tabs ── */}
+        <div className="flex rounded-input bg-slate-100 p-1 mb-5">
+          <button
+            onClick={() => setMode('login')}
+            id="tab-login"
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-md transition-all duration-200 ${
+              mode === 'login'
+                ? 'bg-white text-brand-primary shadow-sm'
+                : 'text-brand-textMuted hover:text-brand-dark'
+            }`}
+          >
+            <LogIn size={13} /> Sign In
+          </button>
+          <button
+            onClick={() => setMode('signup')}
+            id="tab-signup"
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-md transition-all duration-200 ${
+              mode === 'signup'
+                ? 'bg-white text-brand-primary shadow-sm'
+                : 'text-brand-textMuted hover:text-brand-dark'
+            }`}
+          >
+            <UserPlus size={13} /> Create Account
+          </button>
+        </div>
+
+        {/* ── Email Form ── */}
+        <form onSubmit={mode === 'login' ? handleEmailLogin : handleEmailSignup} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-brand-dark mb-1.5">Email Address</label>
+            <div className="relative">
+              <input
+                id="email-input"
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="input-premium pl-10"
+                disabled={loading}
+              />
+              <Mail className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-brand-dark mb-1.5">Password</label>
+            <div className="relative">
+              <input
+                id="password-input"
+                type={showPassword ? 'text' : 'password'}
+                required
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                placeholder={mode === 'signup' ? 'Min. 8 characters' : 'Enter password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="input-premium pl-10 pr-10"
+                disabled={loading}
+              />
+              <Lock className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-3 text-slate-400 hover:text-brand-primary"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          <button
+            id="email-submit-btn"
+            type="submit"
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 py-3.5 px-4 font-bold text-white rounded-input gradient-primary hover:gradient-hover transition-all duration-200 shadow-md focus:outline-none focus:ring-4 focus:ring-brand-primary/20 disabled:opacity-50"
+          >
+            {loading ? (
+              <RefreshCw className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                {mode === 'login' ? 'Sign In' : 'Create Account'}
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </form>
+
+        {/* Footer */}
+        <div className="mt-6 pt-5 border-t border-slate-200/40 flex items-center justify-center gap-2 text-[10px] text-brand-textMuted font-bold uppercase tracking-wider">
+          <ShieldCheck className="w-4 h-4 text-brand-secondary" />
+          End-to-End Encrypted · RBI Compliant
+        </div>
       </div>
     </div>
   );

@@ -31,6 +31,7 @@ export const requireAuth = async (req, res, next) => {
           .insert({
             id: devUserId,
             mobile: '9999999999',
+            email: 'dev@safekosh.in',
             name: 'Dev User',
             language: 'hi',
             onboarding_completed: false,

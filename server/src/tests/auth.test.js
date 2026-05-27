@@ -23,13 +23,7 @@ app.get('/test-secure', requireAuth, (req, res) => {
 app.use('/api/auth', authRouter);
 
 describe('Auth API & Middleware', () => {
-  test('POST /api/auth/send-otp rejects non-Indian mobile numbers', async () => {
-    const res = await request(app)
-      .post('/api/auth/send-otp')
-      .send({ mobile: '1234567890' }); // Starts with 1
 
-    expect(res.status).toBe(400);
-  });
 
   test('Auth middleware rejects requests without Bearer token', async () => {
     const res = await request(app)

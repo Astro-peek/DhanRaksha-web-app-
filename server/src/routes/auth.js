@@ -3,36 +3,13 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { requireAuth } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
-import { 
-  authSendOtpLimiter, 
-  authVerifyOtpLimiter, 
-  generalApiLimiter 
-} from '../middleware/rateLimiter.js';
+import { generalApiLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
 // ==========================================
 // ZOD VALIDATION SCHEMAS
 // ==========================================
-
-const sendOtpSchema = z.object({
-  mobile: z.string()
-    .length(10, 'Mobile number must be exactly 10 digits')
-    .regex(/^[6-9]\d{9}$/, 'Invalid Indian mobile number format')
-});
-
-const verifyOtpSchema = z.object({
-  mobile: z.string()
-    .length(10, 'Mobile number must be exactly 10 digits')
-    .regex(/^[6-9]\d{9}$/, 'Invalid Indian mobile number format'),
-  otp: z.string()
-    .length(6, 'OTP must be exactly 6 digits')
-    .regex(/^\d{6}$/, 'OTP must be numerical')
-});
-
-const refreshSessionSchema = z.object({
-  refresh_token: z.string().min(1, 'Refresh token is required')
-});
 
 const updateProfileSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100).optional(),
@@ -67,151 +44,6 @@ const logAudit = async (userId, action, data = {}, req) => {
 // ==========================================
 // ROUTES
 // ==========================================
-
-/**
- * POST /api/auth/send-otp
- * Trigger phone-OTP magiclink via SMS
- */
-router.post('/send-otp', authSendOtpLimiter, validate(sendOtpSchema), async (req, res, next) => {
-  const { mobile } = req.body;
-  const fullPhone = `+91${mobile}`;
-
-  try {
-    // Invoke Supabase SMS Auth trigger
-    const { error } = await supabaseAdmin.auth.signInWithOtp({
-      phone: fullPhone
-    });
-
-    if (error) {
-      // Keep errors opaque to client but log internally
-      console.error(`[OTP Send Fail] for phone ${fullPhone}:`, error.message);
-      return res.status(400).json({ 
-        error: 'Failed to initiate OTP check. Please verify your mobile number.' 
-      });
-    }
-
-    // Log to audit log
-    await logAudit(null, 'otp_requested', { mobile: `+91******${mobile.slice(-4)}` }, req);
-
-    return res.json({ 
-      success: true, 
-      message: `OTP sent successfully to +91******${mobile.slice(-4)}` 
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-/**
- * POST /api/auth/verify-otp
- * Verify phone-OTP credentials and create user records
- */
-router.post('/verify-otp', authVerifyOtpLimiter, validate(verifyOtpSchema), async (req, res, next) => {
-  const { mobile, otp } = req.body;
-  const fullPhone = `+91${mobile}`;
-
-  try {
-    // 1. Verify OTP with Supabase
-    const { data: sessionData, error: verifyErr } = await supabaseAdmin.auth.verifyOtp({
-      phone: fullPhone,
-      token: otp,
-      type: 'sms'
-    });
-
-    if (verifyErr || !sessionData?.user) {
-      return res.status(401).json({ 
-        error: 'Invalid or expired OTP', 
-        code: 'OTP_INVALID' 
-      });
-    }
-
-    const userId = sessionData.user.id;
-
-    // 2. Query public.users table to verify profile exists
-    let { data: userProfile, error: queryErr } = await supabaseAdmin
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (queryErr) {
-      console.error('[Verify OTP] Profile fetch error:', queryErr.message);
-    }
-
-    // 3. Fail-safe: Create user profile if trigger hasn't completed it yet
-    if (!userProfile) {
-      console.warn(`[Verify OTP] Profile not found for ${userId}. Creating profile fallback...`);
-      const { data: newProfile, error: insertErr } = await supabaseAdmin
-        .from('users')
-        .insert({
-          id: userId,
-          mobile: mobile
-        })
-        .select()
-        .single();
-
-      if (insertErr) {
-        console.error('[Verify OTP] Profile fallback insert failed:', insertErr.message);
-        return res.status(500).json({ error: 'Failed to construct user profile ledger' });
-      }
-      userProfile = newProfile;
-    }
-
-    // 4. Log login audit trail
-    await logAudit(userId, 'login_success', {}, req);
-
-    // 5. Respond with full authentication context
-    return res.json({
-      session: {
-        access_token: sessionData.session.access_token,
-        refresh_token: sessionData.session.refresh_token,
-        expires_at: sessionData.session.expires_at
-      },
-      user: {
-        id: userProfile.id,
-        mobile: userProfile.mobile,
-        name: userProfile.name || null,
-        language: userProfile.language,
-        user_type: userProfile.user_type,
-        onboarding_completed: userProfile.onboarding_completed,
-        upi_id: userProfile.upi_id || null
-      }
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-/**
- * POST /api/auth/refresh
- * Refresh expired session keys
- */
-router.post('/refresh', generalApiLimiter, validate(refreshSessionSchema), async (req, res, next) => {
-  const { refresh_token } = req.body;
-
-  try {
-    const { data: refreshData, error: refreshErr } = await supabaseAdmin.auth.refreshSession({
-      refresh_token
-    });
-
-    if (refreshErr || !refreshData?.session) {
-      return res.status(401).json({ 
-        error: 'Session refresh credentials have expired. Please login again.',
-        code: 'SESSION_EXPIRED'
-      });
-    }
-
-    return res.json({
-      session: {
-        access_token: refreshData.session.access_token,
-        refresh_token: refreshData.session.refresh_token,
-        expires_at: refreshData.session.expires_at
-      }
-    });
-  } catch (err) {
-    next(err);
-  }
-});
 
 /**
  * POST /api/auth/logout
@@ -256,10 +88,12 @@ router.get('/me', requireAuth, generalApiLimiter, async (req, res, next) => {
           .from('users')
           .insert({
             id: req.user.id,
+            email: req.user.email || null,
             mobile: req.user.phone?.replace('+91', '') || null,
           })
           .select()
           .single();
+
         if (createErr) {
           console.error('[/me] Auto-create profile failed:', createErr.message);
           return res.status(500).json({ error: 'Failed to initialize user profile' });
@@ -336,6 +170,7 @@ router.put('/profile', requireAuth, generalApiLimiter, validate(updateProfileSch
       success: true,
       user: {
         id: updatedUser.id,
+        email: updatedUser.email || null,
         mobile: updatedUser.mobile,
         name: updatedUser.name || null,
         language: updatedUser.language,
@@ -415,6 +250,7 @@ router.post('/complete-onboarding', requireAuth, generalApiLimiter, async (req, 
       success: true,
       user: {
         id: updatedUser.id,
+        email: updatedUser.email || null,
         mobile: updatedUser.mobile,
         name: updatedUser.name || null,
         language: updatedUser.language,
