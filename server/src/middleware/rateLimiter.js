@@ -5,7 +5,7 @@ import { RedisStore } from 'rate-limit-redis';
 let redisClient;
 
 // Connect to Upstash Redis for shared distributed rate limiting in production
-if (process.env.UPSTASH_REDIS_URL) {
+if (process.env.UPSTASH_REDIS_URL && process.env.NODE_ENV !== 'test') {
   try {
     redisClient = new Redis(process.env.UPSTASH_REDIS_URL, {
       maxRetriesPerRequest: null,
@@ -87,10 +87,12 @@ export const certificateLimiter = createLimiter('cert', {
   keyGenerator: (req) => req.user?.id || req.ip,
 });
 
-// 5. General API: 100 requests per minute per user
+// 5. General API: 300 req/min in dev, 100 req/min in production
+// /api/auth/me is called on every page load \u2014 skip it to avoid false 429s
 export const generalApiLimiter = createLimiter('general', {
   windowMs: 60 * 1000,
-  max: 100,
+  max: process.env.NODE_ENV === 'production' ? 100 : 300,
   keyGenerator: (req) => req.user?.id || req.ip,
+  skip: (req) => req.path === '/api/auth/me' || req.path.endsWith('/me'),
 });
 

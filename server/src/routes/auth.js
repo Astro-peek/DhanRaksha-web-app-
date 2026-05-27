@@ -249,6 +249,28 @@ router.get('/me', requireAuth, generalApiLimiter, async (req, res, next) => {
       .single();
 
     if (profileErr || !userProfile) {
+      // Auto-create the profile if it's missing (handles race conditions from trigger delays)
+      if (profileErr?.code === 'PGRST116' || !userProfile) {
+        console.warn(`[/me] Profile not found for ${req.user.id}. Auto-creating...`);
+        const { data: newProfile, error: createErr } = await supabaseAdmin
+          .from('users')
+          .insert({
+            id: req.user.id,
+            mobile: req.user.phone?.replace('+91', '') || null,
+          })
+          .select()
+          .single();
+        if (createErr) {
+          console.error('[/me] Auto-create profile failed:', createErr.message);
+          return res.status(500).json({ error: 'Failed to initialize user profile' });
+        }
+        return res.json({
+          ...newProfile,
+          vault_status: 'inactive',
+          active_chit_count: 0,
+          latest_certificate_status: null
+        });
+      }
       return res.status(404).json({ error: 'User profile not found' });
     }
 

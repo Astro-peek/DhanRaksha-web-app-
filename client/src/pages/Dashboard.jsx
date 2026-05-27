@@ -105,12 +105,14 @@ export default function Dashboard() {
     setLoading(true);
     await Promise.all([fetchProfile(), fetchVaultAccount(), fetchTransactions()]);
     setLoading(false);
-  }, [fetchProfile(), fetchVaultAccount(), fetchTransactions()]);
+  }, [fetchProfile, fetchVaultAccount, fetchTransactions]);
 
   // Initial Data Fetch
   useEffect(() => {
-    fetchAllData();
-  }, []);
+    if (user?.id) {
+      fetchAllData();
+    }
+  }, [user?.id, fetchAllData]);
 
   // Supabase Real-time Listener for Vault Transactions
   useEffect(() => {

@@ -26,6 +26,9 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { toast } from 'react-hot-toast';
+import useSWR from 'swr';
+import { useVaultRealtime } from '../hooks/useRealtime';
+import { withOfflineQueue } from '../lib/offlineQueue';
 
 export default function Vault() {
   const { user } = useAuth();
@@ -109,26 +112,34 @@ export default function Vault() {
     calcYearly: lang === 'hi' ? 'वार्षिक बचत (१०% अनुमानित ब्याज के साथ)' : 'Yearly Savings (with 10% expected compound)'
   };
 
-  // Fetch initial Vault details
-  const fetchVault = useCallback(async () => {
-    try {
-      const res = await api.get('/api/vault/account');
-      if (res.data?.success) {
-        setAccount(res.data.account);
-        setSavePerTx(res.data.account.save_per_transaction || 20);
-        setDailyLimit(res.data.account.daily_limit || 500);
-        
-        // If mandate is pending, transition stepper to auth state
-        if (res.data.account.mandate_status === 'pending') {
-          setMandateStep(2);
-        } else if (res.data.account.mandate_status === 'active') {
-          setMandateStep(3);
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching vault account:', err);
+  // Call Realtime Hook
+  useVaultRealtime(user?.id);
+
+  // SWR Caching
+  const fetcher = (url) => api.get(url).then(r => r.data);
+  const { data: swrData, error: swrErr, mutate } = useSWR(
+    user?.id ? `/api/vault/account?userId=${user.id}` : null,
+    fetcher,
+    {
+      refreshInterval: 30000,
+      revalidateOnFocus: true
     }
-  }, []);
+  );
+
+  // Sync SWR Data with Local State
+  useEffect(() => {
+    if (swrData?.success) {
+      setAccount(swrData.account);
+      setSavePerTx(swrData.account.save_per_transaction || 20);
+      setDailyLimit(swrData.account.daily_limit || 500);
+      
+      if (swrData.account.mandate_status === 'pending') {
+        setMandateStep(2);
+      } else if (swrData.account.mandate_status === 'active') {
+        setMandateStep(3);
+      }
+    }
+  }, [swrData]);
 
   // Fetch transactions with pagination
   const fetchTransactions = useCallback(async (pageNum = 1, append = false) => {
@@ -149,48 +160,10 @@ export default function Vault() {
     }
   }, []);
 
-  // Initialize
+  // Initialize transactions
   useEffect(() => {
-    fetchVault();
     fetchTransactions(1, false);
-  }, [fetchVault, fetchTransactions]);
-
-  // Real-time listener for AutoPay mandate state & balance
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const channel = supabase
-      .channel(`vault-updates-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'vault_accounts',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          const updated = payload.new;
-          if (updated) {
-            setAccount(prev => ({
-              ...prev,
-              balance: updated.balance,
-              daily_saved_today: updated.daily_saved_today,
-              mandate_status: updated.mandate_status
-            }));
-            
-            if (updated.mandate_status === 'active') {
-              setMandateStep(3);
-            }
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id]);
+  }, [fetchTransactions]);
 
   // Infinite Scroll Intersection Observer Setup
   useEffect(() => {
@@ -235,6 +208,23 @@ export default function Vault() {
     }
   };
 
+  // Save operation wrapped for offline queueing
+  const saveOperation = async (amount) => {
+    const res = await api.post('/api/vault/save', { amount });
+    if (res.data?.success) {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+      toast.success(lang === 'hi' ? `₹${amount} सफलतापूर्वक सुरक्षित जमा हुआ!` : `₹${amount} saved successfully in Vault!`);
+      setShowSaveModal(false);
+      setSaveAmount('');
+      mutate();
+      fetchTransactions(1, false);
+    }
+  };
+
   // Manual save handler
   const handleSaveSubmit = async (e) => {
     e.preventDefault();
@@ -246,19 +236,7 @@ export default function Vault() {
 
     setActionLoading(true);
     try {
-      const res = await api.post('/api/vault/save', { amount: amountNum });
-      if (res.data?.success) {
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
-        toast.success(lang === 'hi' ? `₹${amountNum} सफलतापूर्वक सुरक्षित जमा हुआ!` : `₹${amountNum} saved successfully in Vault!`);
-        setShowSaveModal(false);
-        setSaveAmount('');
-        fetchVault();
-        fetchTransactions(1, false);
-      }
+      await withOfflineQueue(saveOperation, amountNum);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to complete savings transaction.');
     } finally {
@@ -294,7 +272,7 @@ export default function Vault() {
         );
         setShowWithdrawModal(false);
         setWithdrawAmount('');
-        fetchVault();
+        mutate();
         fetchTransactions(1, false);
       }
     } catch (err) {
@@ -315,7 +293,7 @@ export default function Vault() {
       if (res.data?.success) {
         toast.success(lang === 'hi' ? 'बचत सीमाएं अपडेट की गईं!' : 'Savings settings successfully updated!');
         setShowSettings(false);
-        fetchVault();
+        mutate();
       }
     } catch (err) {
       toast.error('Failed to update savings limits.');

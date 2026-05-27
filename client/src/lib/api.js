@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { supabase } from './supabase';
 import { toast } from 'react-hot-toast';
+import useAuthStore from '../store/authStore';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
@@ -9,16 +10,12 @@ const api = axios.create({
   },
 });
 
-// Request Interceptor: Attach Supabase JWT Token to Authorization header
+// Request Interceptor: Attach JWT Token from authStore
 api.interceptors.request.use(
-  async (config) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        config.headers.Authorization = `Bearer ${session.access_token}`;
-      }
-    } catch (error) {
-      console.error('Error fetching auth token in axios interceptor:', error);
+  (config) => {
+    const session = useAuthStore.getState().session;
+    if (session?.access_token) {
+      config.headers.Authorization = `Bearer ${session.access_token}`;
     }
     return config;
   },
@@ -36,7 +33,8 @@ api.interceptors.response.use(
 
     if (status === 401) {
       console.warn('Unauthorized access (401). Redirecting to login.');
-      // Safely sign out the user locally
+      // Safely sign out the user locally and clear authStore
+      useAuthStore.getState().clearAuth();
       await supabase.auth.signOut();
       
       // Prevent infinite redirect loops if we are already on /login

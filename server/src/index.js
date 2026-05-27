@@ -1,5 +1,21 @@
 import express from 'express';
 import cors from 'cors';
+import * as Sentry from '@sentry/node';
+
+// Initialize Sentry before routes
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  environment: process.env.NODE_ENV || 'development',
+  tracesSampleRate: 0.1,
+  beforeSend(event) {
+    if (event.user) delete event.user.mobile;
+    if (event.extra) {
+      delete event.extra.aadhaar;
+      delete event.extra.upi_id;
+    }
+    return event;
+  }
+});
 
 // Config and Logger imports
 import { config } from './config/index.js';
@@ -76,6 +92,7 @@ app.use((req, res, next) => {
 });
 
 // 6. Global Exception Catcher (Must be last)
+Sentry.setupExpressErrorHandler(app);
 app.use(errorHandler);
 
 // Initialize Server Thread

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { Toaster as SonnerToaster } from 'sonner';
@@ -8,45 +8,58 @@ import { AuthProvider } from './components/shared/AuthProvider';
 import ProtectedRoute from './components/shared/ProtectedRoute';
 import AppLayout from './components/shared/AppLayout';
 import ErrorBoundary from './components/shared/ErrorBoundary';
+import LoadingSpinner from './components/shared/LoadingSpinner';
 
-// Page Screens
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Vault from './pages/Vault';
-import ChitFund from './pages/ChitFund';
-import Lending from './pages/Lending';
-import Certificate from './pages/Certificate';
-import ChitGroupDetail from './pages/ChitGroupDetail';
-import Verify from './pages/Verify';
+// Lazy-loaded Page Screens
+const Login = lazy(() => import('./pages/Login'));
+const Onboarding = lazy(() => import('./pages/Onboarding'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Vault = lazy(() => import('./pages/Vault'));
+const ChitFund = lazy(() => import('./pages/ChitFund'));
+const Lending = lazy(() => import('./pages/Lending'));
+const Certificate = lazy(() => import('./pages/Certificate'));
+const ChitGroupDetail = lazy(() => import('./pages/ChitGroupDetail'));
+const Verify = lazy(() => import('./pages/Verify'));
+
+const FullPageLoader = () => (
+  <div className="min-h-screen w-full flex items-center justify-center bg-brand-bg">
+    <LoadingSpinner size="lg" label="SafeKosh Loading..." />
+  </div>
+);
 
 function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            {/* Public Path */}
-            <Route path="/login" element={<Login />} />
+          <Suspense fallback={<FullPageLoader />}>
+            <Routes>
+              {/* Public Path */}
+              <Route path="/login" element={<Login />} />
 
-            {/* Protected Workspace Paths */}
-            <Route element={<ProtectedRoute />}>
-              <Route element={<AppLayout />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/vault" element={<Vault />} />
-                <Route path="/chitfund" element={<ChitFund />} />
-                <Route path="/lending" element={<Lending />} />
-                <Route path="/certificate" element={<Certificate />} />
-                <Route path="/chit/:groupId" element={<ChitGroupDetail />} />
-                
-                {/* Fallback internal paths */}
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              {/* Protected Workspace Paths */}
+              <Route element={<ProtectedRoute />}>
+                {/* Onboarding doesn't show default layout navbar */}
+                <Route path="/onboarding" element={<Onboarding />} />
+
+                <Route element={<AppLayout />}>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/vault" element={<Vault />} />
+                  <Route path="/chitfund" element={<ChitFund />} />
+                  <Route path="/lending" element={<Lending />} />
+                  <Route path="/certificate" element={<Certificate />} />
+                  <Route path="/chit/:groupId" element={<ChitGroupDetail />} />
+                  
+                  {/* Fallback internal paths */}
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                </Route>
               </Route>
-            </Route>
 
-            {/* Public Verification Path (No Auth / Layout Required) */}
-            <Route path="/verify/:certRef" element={<Verify />} />
-          </Routes>
+              {/* Public Verification Path (No Auth / Layout Required) */}
+              <Route path="/verify/:certRef" element={<Verify />} />
+            </Routes>
+          </Suspense>
           
           {/* Global Alert Systems */}
           <Toaster 

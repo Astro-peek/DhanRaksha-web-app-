@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { toast } from 'react-hot-toast';
+import { useChitRealtime } from '../hooks/useRealtime';
 
 export default function ChitGroupDetail() {
   const { groupId } = useParams();
@@ -143,55 +144,12 @@ export default function ChitGroupDetail() {
     }
   }, [currentCycle?.id, fetchContributions, fetchBids]);
 
-  // Real-time Bids subscription
-  useEffect(() => {
-    if (!currentCycle?.id || currentCycle.status !== 'auction') return;
-
-    const channel = supabase
-      .channel(`realtime-bids-${currentCycle.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'chit_bids',
-          filter: `cycle_id=eq.${currentCycle.id}`
-        },
-        () => {
-          fetchBids();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [currentCycle?.id, currentCycle?.status, fetchBids]);
-
-  // Real-time Contributions subscription
-  useEffect(() => {
-    if (!currentCycle?.id) return;
-
-    const channel = supabase
-      .channel(`realtime-contribs-${currentCycle.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'chit_contributions',
-          filter: `cycle_id=eq.${currentCycle.id}`
-        },
-        () => {
-          fetchContributions();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [currentCycle?.id, fetchContributions]);
+  // Real-time Group Subscriptions (bids, contributions, cycles)
+  useChitRealtime(groupId, {
+    onBid: () => fetchBids(),
+    onContribution: () => fetchContributions(),
+    onCycleStatusChange: () => fetchGroupDetail()
+  });
 
   // Member anonymization map
   const memberLetters = {};

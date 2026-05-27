@@ -1,8 +1,10 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import useAuthStore from '../../store/authStore';
+import api from '../../lib/api';
 
-const AuthContext = createContext({
+const AuthContext = React.createContext({
   session: null,
   user: null,
   loading: true,
@@ -10,29 +12,93 @@ const AuthContext = createContext({
 });
 
 export const AuthProvider = ({ children }) => {
-  const [session, setSession] = useState(null);
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { session, user, loading, setSession, setUser, setLoading, clearAuth } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
     let active = true;
 
-    // Get current session on mount
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      if (active) {
-        setSession(initialSession);
-        setUser(initialSession?.user ?? null);
-        setLoading(false);
+    const initializeAuth = async () => {
+      try {
+        // Get initial session
+        const { data: { session: initialSession }, error: sessionErr } = await supabase.auth.getSession();
+        
+        if (sessionErr) throw sessionErr;
+
+        if (initialSession) {
+          // Check if session is expired or close to it
+          const isExpired = initialSession.expires_at && (initialSession.expires_at * 1000) < Date.now();
+          let currentSession = initialSession;
+
+          if (isExpired) {
+            console.log('Session expired, refreshing...');
+            const { data: { session: refreshedSession }, error: refreshErr } = await supabase.auth.refreshSession();
+            if (refreshErr) {
+              console.error('Session refresh failed:', refreshErr);
+              clearAuth();
+              setLoading(false);
+              return;
+            }
+            currentSession = refreshedSession;
+          }
+
+          if (active && currentSession) {
+            setSession(currentSession);
+            // Fetch DB profile via /api/auth/me
+            try {
+              const res = await api.get('/api/auth/me', {
+                headers: { Authorization: `Bearer ${currentSession.access_token}` }
+              });
+              setUser(res.data);
+            } catch (err) {
+              console.error('Failed to fetch user profile:', err);
+              // Fallback user from session
+              setUser({
+                id: currentSession.user.id,
+                mobile: currentSession.user.phone?.replace('+91', '') || '',
+                onboarding_completed: false
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        clearAuth();
+      } finally {
+        if (active) setLoading(false);
       }
-    });
+    };
+
+    initializeAuth();
 
     // Listen to changes in auth state (login, logout, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
-      if (active) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      console.log('onAuthStateChange event:', event);
+      if (!active) return;
+
+      if (currentSession) {
         setSession(currentSession);
-        setUser(currentSession?.user ?? null);
+        // Only fetch profile from server on actual sign-in events.
+        // TOKEN_REFRESHED just updates the session token — no need to re-hit the server.
+        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          try {
+            const res = await api.get('/api/auth/me', {
+              headers: { Authorization: `Bearer ${currentSession.access_token}` }
+            });
+            setUser(res.data);
+          } catch (err) {
+            console.error('Failed to fetch user profile on state change:', err);
+            setUser({
+              id: currentSession.user.id,
+              mobile: currentSession.user.phone?.replace('+91', '') || '',
+              onboarding_completed: false
+            });
+          }
+        }
+        setLoading(false);
+      } else {
+        clearAuth();
         setLoading(false);
       }
     });
@@ -41,32 +107,45 @@ export const AuthProvider = ({ children }) => {
       active = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [setSession, setUser, setLoading, clearAuth]);
 
-  // Control path guards dynamically
+  // Path guards and redirection logic
   useEffect(() => {
     if (loading) return;
 
-    const isPublicPath = location.pathname === '/login';
+    const isPublicPath = location.pathname === '/login' || location.pathname.startsWith('/verify/');
+    const isOnboardingPath = location.pathname === '/onboarding';
 
-    if (!session && !isPublicPath) {
-      // User is not authenticated; redirect to login
-      navigate('/login', { replace: true });
-    } else if (session && isPublicPath) {
-      // User is authenticated but trying to access login; redirect to dashboard
-      navigate('/dashboard', { replace: true });
+    if (!session) {
+      if (!isPublicPath) {
+        navigate('/login', { replace: true });
+      }
+    } else {
+      // Authenticated
+      if (user) {
+        if (!user.onboarding_completed) {
+          if (!isOnboardingPath) {
+            navigate('/onboarding', { replace: true });
+          }
+        } else {
+          // Onboarding completed
+          if (isPublicPath || isOnboardingPath) {
+            navigate('/dashboard', { replace: true });
+          }
+        }
+      }
     }
-  }, [session, loading, location.pathname, navigate]);
+  }, [session, user, loading, location.pathname, navigate]);
 
   const logout = async () => {
     setLoading(true);
     try {
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.error('Error during signout:', error);
+      await api.post('/api/auth/logout');
+    } catch (err) {
+      console.error('Logout API call failed, signing out locally:', err);
     } finally {
-      setSession(null);
-      setUser(null);
+      await supabase.auth.signOut();
+      clearAuth();
       setLoading(false);
       navigate('/login', { replace: true });
     }
@@ -79,4 +158,5 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => React.useContext(AuthContext);
+export default AuthProvider;

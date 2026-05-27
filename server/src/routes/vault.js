@@ -105,6 +105,7 @@ router.get('/account', requireAuth, vaultLimiter, async (req, res, next) => {
         daily_limit: vault.daily_limit,
         daily_saved_today: vault.daily_saved_today,
         mandate_status: vault.mandate_status,
+        razorpay_mandate_id: vault.razorpay_mandate_id || null,
         last_reset_date: vault.last_reset_date
       }
     });

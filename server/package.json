@@ -6,9 +6,13 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --forceExit",
+    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch --forceExit",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --forceExit"
   },
   "dependencies": {
+    "@sentry/node": "^10.54.0",
     "@supabase/supabase-js": "^2.43.4",
     "bullmq": "^5.8.2",
     "cors": "^2.8.5",
@@ -26,5 +30,10 @@
     "razorpay": "^2.9.6",
     "winston": "^3.19.0",
     "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.4.1",
+    "jest": "^30.4.2",
+    "supertest": "^7.2.2"
   }
 }
