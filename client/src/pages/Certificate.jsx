@@ -13,18 +13,6 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts';
-import { 
-  Award, 
-  FileText, 
-  Download, 
-  ShieldCheck, 
-  CheckCircle2, 
-  AlertCircle, 
-  Clock, 
-  Printer, 
-  ChevronRight,
-  TrendingUp
-} from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { toast } from 'react-hot-toast';
 
@@ -37,7 +25,7 @@ export default function Certificate() {
   
   // Generating state
   const [generatingId, setGeneratingId] = useState(null);
-  const [generationStatus, setGenerationStatus] = useState(null); // 'generating', 'ready', 'failed'
+  const [generationStatus, setGenerationStatus] = useState(null);
   const [activeStep, setActiveStep] = useState(1);
   const [currentCert, setCurrentCert] = useState(null);
   
@@ -55,12 +43,12 @@ export default function Certificate() {
     step4: lang === 'hi' ? 'सर्टिफिकेट तैयार है!' : 'Certificate Ready!',
     verifiedSeal: lang === 'hi' ? 'सत्यापित' : 'SafeKosh Verified',
     monthlyAvg: lang === 'hi' ? 'मासिक औसत आय' : 'Avg Monthly Income',
-    savingsIndex: lang === 'hi' ? 'बचत सुसंगतता' : '90-Day Savings Index',
+    savingsIndex: lang === 'hi' ? 'बचत सुसंगतता' : '90-Day Savings',
     consistencyScore: lang === 'hi' ? 'विश्वसनीयता स्कोर' : 'Consistency Score',
     platformsTitle: lang === 'hi' ? 'संबद्ध प्लेटफॉर्म' : 'Associated Platforms',
     issuedDate: lang === 'hi' ? 'जारी तिथि' : 'Issued Date',
     validUntil: lang === 'hi' ? 'वैधता तिथि' : 'Valid Until',
-    downloadPdf: lang === 'hi' ? 'पीडीएफ रसीद डाउनलोड करें' : 'Download PDF Receipt',
+    downloadPdf: lang === 'hi' ? 'पीडीएफ रसीद डाउनलोड करें' : 'Download PDF',
     printBtn: lang === 'hi' ? 'प्रिंट करें' : 'Print Certificate',
     registryTitle: lang === 'hi' ? 'आपके जनरेट किए गए सर्टिफिकेट' : 'Historical Certificates',
     noCerts: lang === 'hi' ? 'अभी तक कोई प्रमाणपत्र जनरेट नहीं किया गया।' : 'No certificates generated yet.',
@@ -74,7 +62,6 @@ export default function Certificate() {
       if (res.data?.success) {
         setCertificates(res.data.certificates || []);
         
-        // Check if there is an active generating certificate
         const generating = res.data.certificates.find(c => c.status === 'generating');
         if (generating) {
           setGeneratingId(generating.id);
@@ -94,14 +81,12 @@ export default function Certificate() {
     return () => stopPolling();
   }, [fetchCertificates]);
 
-  // Polling logic
   const startPolling = (id) => {
     stopPolling();
     let step = 1;
     setActiveStep(1);
     
     pollingInterval.current = setInterval(async () => {
-      // Simulate stepper steps progress visually
       step = Math.min(step + 1, 3);
       setActiveStep(step);
 
@@ -112,11 +97,7 @@ export default function Certificate() {
           
           if (cert && cert.status === 'ready') {
             stopPolling();
-            confetti({
-              particleCount: 150,
-              spread: 80,
-              origin: { y: 0.6 }
-            });
+            confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
             toast.success(lang === 'hi' ? 'सर्टिफिकेट सफलतापूर्वक तैयार!' : 'Income certificate generated successfully!');
             setActiveStep(4);
             setGenerationStatus('ready');
@@ -131,7 +112,7 @@ export default function Certificate() {
       } catch (err) {
         console.error('Polling error:', err);
       }
-    }, 4000); // Poll every 4 seconds
+    }, 4000);
   };
 
   const stopPolling = () => {
@@ -141,20 +122,17 @@ export default function Certificate() {
     }
   };
 
-  // Trigger certificate generation
   const handleGenerate = async () => {
     setLoading(true);
     try {
       const res = await api.post('/api/certificate/generate');
       if (res.data?.success) {
         if (res.data.status === 'ready') {
-          // Returned pre-existing certificate
           confetti({ particleCount: 100 });
           setCurrentCert(res.data.certificate);
           setGenerationStatus('ready');
           fetchCertificates();
         } else {
-          // Started async generation
           setGeneratingId(res.data.certId);
           setGenerationStatus('generating');
           startPolling(res.data.certId);
@@ -167,7 +145,6 @@ export default function Certificate() {
     }
   };
 
-  // Mock Recharts chart dataset (Income Trend over last 3 months)
   const getChartData = (avgIncome) => {
     const val = avgIncome || 32000;
     return [
@@ -177,64 +154,84 @@ export default function Certificate() {
     ];
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const handlePrint = () => window.print();
 
-  // Get active ready certificate to display
   const displayCert = currentCert || certificates.find(c => c.status === 'ready');
+
+  const steps = [
+    { num: 1, label: l.step1, icon: 'manage_search' },
+    { num: 2, label: l.step2, icon: 'bar_chart' },
+    { num: 3, label: l.step3, icon: 'link' },
+    { num: 4, label: l.step4, icon: 'verified' },
+  ];
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 md:px-6 py-6">
       
-      {/* Header section (Non-printable) */}
+      {/* Header section */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 print:hidden">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-brand-dark tracking-tight">
+          <h1 className="font-headline-lg text-headline-lg text-on-background tracking-tight">
             {l.title}
           </h1>
-          <p className="text-sm text-brand-textMuted mt-1">
+          <p className="text-body-md text-on-surface-variant mt-1 max-w-xl">
             {l.subtitle}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {/* Daily limit info */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-tertiary-fixed/40 border border-tertiary-fixed-dim rounded-full text-xs font-semibold text-on-tertiary-fixed-variant">
+            <span className="material-symbols-outlined text-[14px]">info</span>
+            {l.warningLimit}
+          </div>
           {!generatingId && (
             <button
               onClick={handleGenerate}
-              className="px-5 py-2.5 bg-brand-primary hover:bg-brand-primary/95 text-white font-bold text-xs rounded-input active:scale-95 transition-all shadow-md flex items-center gap-1.5"
+              className="px-5 py-2.5 bg-primary hover:bg-primary-container text-on-primary font-bold text-xs rounded-xl active:scale-95 transition-all shadow-md flex items-center gap-1.5"
             >
-              <Award size={14} />
+              <span className="material-symbols-outlined text-[16px]">workspace_premium</span>
               {l.generateBtn}
             </button>
           )}
         </div>
       </div>
 
-      {/* Stepper progress layout during generation */}
+      {/* Stepper progress during generation */}
       {generationStatus === 'generating' && (
-        <div className="premium-card p-6 border-brand-primary/10 max-w-xl mx-auto space-y-6 print:hidden">
-          <div className="text-center space-y-2">
-            <Clock className="w-10 h-10 text-brand-primary animate-spin-slow mx-auto" />
-            <h3 className="text-md font-bold text-brand-dark">{l.loadingCert}</h3>
-            <p className="text-xs text-brand-textMuted">{lang === 'hi' ? 'इसमें लगभग ३० सेकंड का समय लग सकता है...' : 'This will take approximately 30 seconds. Checking ledger logs...'}</p>
+        <div className="bento-card max-w-xl mx-auto print:hidden">
+          <div className="text-center space-y-2 mb-6">
+            <span className="material-symbols-outlined text-[48px] text-primary animate-spin block">sync</span>
+            <h3 className="font-headline-md text-headline-md">{l.loadingCert}</h3>
+            <p className="text-xs text-on-surface-variant">
+              {lang === 'hi' ? 'इसमें लगभग ३० सेकंड का समय लग सकता है...' : 'This will take approximately 30 seconds. Checking ledger logs...'}
+            </p>
           </div>
 
-          {/* Steps rendering */}
           <div className="space-y-4">
-            {[
-              { num: 1, label: l.step1 },
-              { num: 2, label: l.step2 },
-              { num: 3, label: l.step3 }
-            ].map((s) => (
-              <div key={s.num} className="flex items-center gap-3">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                  activeStep > s.num ? 'bg-emerald-500 text-white' : activeStep === s.num ? 'bg-brand-primary text-white animate-pulse' : 'bg-slate-100 text-slate-400'
+            {steps.map((s) => (
+              <div key={s.num} className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-300 ${
+                activeStep === s.num ? 'bg-primary/5 border border-primary/20' : ''
+              }`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 transition-all ${
+                  activeStep > s.num 
+                    ? 'bg-secondary text-white' 
+                    : activeStep === s.num 
+                    ? 'bg-primary text-white animate-pulse' 
+                    : 'bg-surface-container-highest text-on-surface-variant'
                 }`}>
-                  {activeStep > s.num ? '✓' : s.num}
+                  {activeStep > s.num 
+                    ? <span className="material-symbols-outlined text-[16px]">check</span>
+                    : s.num
+                  }
                 </div>
-                <span className={`text-xs font-bold ${
-                  activeStep === s.num ? 'text-brand-primary' : 'text-brand-textPrimary'
-                }`}>{s.label}</span>
+                <div className="flex items-center gap-2 flex-1">
+                  <span className={`material-symbols-outlined text-[18px] ${
+                    activeStep > s.num ? 'text-secondary' : activeStep === s.num ? 'text-primary' : 'text-on-surface-variant'
+                  }`}>{s.icon}</span>
+                  <span className={`text-sm font-semibold ${
+                    activeStep === s.num ? 'text-primary font-bold' : 'text-on-surface'
+                  }`}>{s.label}</span>
+                </div>
               </div>
             ))}
           </div>
@@ -245,104 +242,101 @@ export default function Certificate() {
       {displayCert && generationStatus !== 'generating' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* Certificate Card display (Printable) */}
+          {/* Certificate Card (Printable) */}
           <div className="lg:col-span-2 space-y-4">
             
             {/* The Certificate itself */}
-            <div className="relative border-8 border-double border-amber-600 bg-amber-50/15 p-6 md:p-10 rounded-card bg-white dark:bg-slate-900 shadow-premium flex flex-col justify-between min-h-[500px]">
+            <div className="relative border-8 border-double border-amber-600 bg-amber-50/15 p-6 md:p-10 rounded-2xl bg-white shadow-lg flex flex-col justify-between min-h-[500px] print:shadow-none print:border-amber-800">
               
-              {/* Watermark/seal details */}
+              {/* Watermark */}
               <div className="absolute right-8 top-8 opacity-10 pointer-events-none">
-                <Award size={150} className="text-amber-700" />
+                <span className="material-symbols-outlined text-amber-700 text-[150px]" style={{ fontSize: '150px' }}>workspace_premium</span>
               </div>
 
-              {/* Top border header */}
+              {/* Top header */}
               <div className="flex justify-between items-start border-b border-amber-200/50 pb-4">
                 <div>
-                  <h2 className="text-lg md:text-xl font-extrabold tracking-tight text-amber-800 dark:text-amber-500 uppercase">
+                  <h2 className="text-lg md:text-xl font-extrabold tracking-tight text-amber-800 uppercase">
                     SafeKosh Trust Protocol
                   </h2>
-                  <p className="text-[10px] text-brand-textMuted font-bold tracking-wider mt-0.5">DECENTRALIZED CREDIT REGISTER</p>
+                  <p className="text-[10px] text-on-surface-variant font-bold tracking-wider mt-0.5">DECENTRALIZED CREDIT REGISTER</p>
                 </div>
-                <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold px-2 py-0.5 rounded text-[9px] uppercase shadow-sm">
-                  <CheckCircle2 size={10} />
+                <div className="flex items-center gap-1 bg-secondary-container/30 border border-secondary-container text-on-secondary-container font-bold px-2.5 py-1 rounded-full text-[9px] uppercase shadow-sm">
+                  <span className="material-symbols-outlined text-[12px]">verified</span>
                   {l.verifiedSeal}
                 </div>
               </div>
 
-              {/* Main content body */}
-              <div className="my-6 space-y-5 text-center">
-                <p className="text-[10px] uppercase font-bold text-brand-textMuted tracking-widest">THIS CREDENTIAL OFFICIALLY ATTESTS THAT</p>
-                <h3 className="text-2xl font-black text-brand-textPrimary tracking-tight">
+              {/* Main content */}
+              <div className="my-6 space-y-4 text-center">
+                <p className="text-[10px] uppercase font-bold text-on-surface-variant tracking-widest">THIS CREDENTIAL OFFICIALLY ATTESTS THAT</p>
+                <h3 className="text-2xl font-black text-on-surface tracking-tight">
                   {user?.name || 'Verified SafeKosh Member'}
                 </h3>
-                <p className="text-xs text-brand-textMuted max-w-md mx-auto leading-relaxed">
+                <p className="text-xs text-on-surface-variant max-w-md mx-auto leading-relaxed">
                   has completed active rotating savings circles and held collateralized credit assets audited on-chain under unique certificate reference:
                 </p>
-                <span className="inline-block px-4 py-1.5 font-mono text-sm font-black bg-brand-primary/10 border border-brand-primary/20 text-brand-primary rounded shadow-sm">
+                <span className="inline-block px-4 py-1.5 font-mono text-sm font-black bg-primary/10 border border-primary/20 text-primary rounded-lg shadow-sm">
                   {displayCert.cert_ref}
                 </span>
               </div>
 
-              {/* Key Parameters Cards */}
+              {/* Key Parameters */}
               <div className="grid grid-cols-3 gap-3 md:gap-4 my-4">
-                <div className="p-3 bg-white dark:bg-slate-950 border border-amber-100 rounded-xl text-center shadow-sm">
-                  <span className="text-[9px] font-bold text-brand-textMuted uppercase block leading-none">{l.monthlyAvg}</span>
-                  <p className="text-sm font-black text-amber-850 dark:text-amber-500 mt-1.5">{formatINR(displayCert.monthly_avg || 32000)}</p>
-                </div>
-                <div className="p-3 bg-white dark:bg-slate-950 border border-amber-100 rounded-xl text-center shadow-sm">
-                  <span className="text-[9px] font-bold text-brand-textMuted uppercase block leading-none">{l.savingsIndex}</span>
-                  <p className="text-sm font-black text-amber-850 dark:text-amber-500 mt-1.5">{formatINR(displayCert.total_90_day || 12000)}</p>
-                </div>
-                <div className="p-3 bg-white dark:bg-slate-950 border border-amber-100 rounded-xl text-center shadow-sm">
-                  <span className="text-[9px] font-bold text-brand-textMuted uppercase block leading-none">{l.consistencyScore}</span>
-                  <p className="text-sm font-black text-amber-850 dark:text-amber-500 mt-1.5">{displayCert.consistency_score || 94}%</p>
-                </div>
+                {[
+                  { label: l.monthlyAvg, value: formatINR(displayCert.monthly_avg || 32000) },
+                  { label: l.savingsIndex, value: formatINR(displayCert.total_90_day || 12000) },
+                  { label: l.consistencyScore, value: `${displayCert.consistency_score || 94}%` },
+                ].map(stat => (
+                  <div key={stat.label} className="p-3 bg-white border border-amber-100 rounded-xl text-center shadow-sm">
+                    <span className="text-[9px] font-bold text-on-surface-variant uppercase block leading-none">{stat.label}</span>
+                    <p className="text-sm font-black text-amber-800 mt-1.5">{stat.value}</p>
+                  </div>
+                ))}
               </div>
 
-              {/* Bottom footer section */}
-              <div className="border-t border-amber-200/50 pt-6 flex flex-col md:flex-row items-center justify-between gap-4 mt-4">
+              {/* Footer */}
+              <div className="border-t border-amber-200/50 pt-5 flex flex-col md:flex-row items-center justify-between gap-4 mt-4">
                 <div className="flex gap-6 text-left">
                   <div>
-                    <span className="text-[9px] font-bold text-brand-textMuted uppercase">{l.issuedDate}</span>
-                    <p className="text-xs font-bold text-brand-textPrimary mt-0.5">
+                    <span className="text-[9px] font-bold text-on-surface-variant uppercase">{l.issuedDate}</span>
+                    <p className="text-xs font-bold text-on-surface mt-0.5">
                       {new Date(displayCert.created_at).toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-US')}
                     </p>
                   </div>
                   <div>
-                    <span className="text-[9px] font-bold text-brand-textMuted uppercase">{l.validUntil}</span>
-                    <p className="text-xs font-bold text-brand-textPrimary mt-0.5">
+                    <span className="text-[9px] font-bold text-on-surface-variant uppercase">{l.validUntil}</span>
+                    <p className="text-xs font-bold text-on-surface mt-0.5">
                       {new Date(displayCert.valid_until).toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-US')}
                     </p>
                   </div>
                 </div>
 
-                {/* QR Code and link */}
+                {/* QR Code */}
                 <div className="flex items-center gap-3">
-                  <div className="bg-white p-1 rounded border border-slate-150">
+                  <div className="bg-white p-1 rounded border border-outline-variant">
                     <QRCodeSVG 
                       value={`${window.location.origin}/verify/${displayCert.cert_ref}`} 
                       size={54} 
                     />
                   </div>
                   <div className="text-left">
-                    <span className="text-[8px] font-mono text-brand-textMuted uppercase leading-none block">Verify URL</span>
-                    <span className="text-[10px] font-bold text-brand-primary hover:underline font-mono">
+                    <span className="text-[8px] font-mono text-on-surface-variant uppercase leading-none block">Verify URL</span>
+                    <span className="text-[10px] font-bold text-primary hover:underline font-mono">
                       /verify/{displayCert.cert_ref}
                     </span>
                   </div>
                 </div>
               </div>
-
             </div>
 
-            {/* Print and PDF download triggers (Non-printable) */}
+            {/* Print and PDF triggers */}
             <div className="flex gap-3 print:hidden justify-end">
               <button
                 onClick={handlePrint}
-                className="px-4 py-2 bg-slate-150 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-250 font-bold text-xs rounded-input active:scale-95 transition-all shadow flex items-center gap-1.5"
+                className="px-4 py-2 bg-surface-container-low hover:bg-surface-container-high border border-outline-variant text-on-surface font-bold text-xs rounded-xl active:scale-95 transition-all shadow flex items-center gap-1.5"
               >
-                <Printer size={14} />
+                <span className="material-symbols-outlined text-[16px]">print</span>
                 {l.printBtn}
               </button>
               {displayCert.pdf_public_url && (
@@ -350,31 +344,31 @@ export default function Certificate() {
                   href={displayCert.pdf_public_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-4 py-2 bg-brand-primary hover:bg-brand-primary/95 text-white font-bold text-xs rounded-input active:scale-95 transition-all shadow flex items-center gap-1.5"
+                  className="px-4 py-2 bg-primary hover:bg-primary-container text-on-primary font-bold text-xs rounded-xl active:scale-95 transition-all shadow flex items-center gap-1.5"
                 >
-                  <Download size={14} />
+                  <span className="material-symbols-outlined text-[16px]">download</span>
                   {l.downloadPdf}
                 </a>
               )}
             </div>
           </div>
 
-          {/* Right Column: Recharts breakdown + blockchain proof (Non-printable) */}
+          {/* Right Column: Chart + Blockchain proof */}
           <div className="space-y-6 print:hidden">
             
-            {/* Chart Breakdown */}
-            <div className="premium-card p-6">
-              <h3 className="text-md font-bold text-brand-dark mb-4 flex items-center gap-1.5">
-                <TrendingUp size={16} className="text-brand-primary" />
+            {/* Income Chart */}
+            <div className="bento-card">
+              <h3 className="font-headline-md text-headline-md mb-4 flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-primary text-[20px]">trending_up</span>
                 {lang === 'hi' ? 'आय रिकॉर्ड विश्लेषण' : 'Income Ledger Breakdown'}
               </h3>
               <div className="h-44">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={getChartData(displayCert.monthly_avg)}>
-                    <XAxis dataKey="month" stroke="#94A3B8" fontSize={11} tickLine={false} />
-                    <YAxis fontSize={10} stroke="#94A3B8" tickLine={false} />
+                    <XAxis dataKey="month" stroke="#737686" fontSize={11} tickLine={false} />
+                    <YAxis fontSize={10} stroke="#737686" tickLine={false} />
                     <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Income']} />
-                    <Bar dataKey="Income" fill="#028090" radius={[4, 4, 0, 0]} barSize={36} />
+                    <Bar dataKey="Income" fill="#006c49" radius={[6, 6, 0, 0]} barSize={36} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -382,13 +376,13 @@ export default function Certificate() {
 
             {/* Platforms Card */}
             {displayCert.gig_platforms && displayCert.gig_platforms.length > 0 && (
-              <div className="premium-card p-6">
-                <h3 className="text-md font-bold text-brand-dark mb-3">{l.platformsTitle}</h3>
+              <div className="bento-card">
+                <h3 className="font-headline-md text-headline-md mb-3">{l.platformsTitle}</h3>
                 <div className="flex flex-wrap gap-2">
                   {displayCert.gig_platforms.map(p => (
                     <span 
                       key={p} 
-                      className="px-2.5 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-250 rounded-lg"
+                      className="px-2.5 py-1 bg-surface-container-low border border-outline-variant text-xs font-semibold text-on-surface rounded-lg"
                     >
                       {p}
                     </span>
@@ -397,23 +391,23 @@ export default function Certificate() {
               </div>
             )}
 
-            {/* On-chain Proof details */}
-            <div className="premium-card p-6">
-              <h3 className="text-md font-bold text-brand-dark mb-3 flex items-center gap-1.5">
-                <ShieldCheck size={16} className="text-brand-primary" />
+            {/* On-chain Proof */}
+            <div className="bento-card">
+              <h3 className="font-headline-md text-headline-md mb-3 flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-primary text-[20px]">verified_user</span>
                 {lang === 'hi' ? 'ब्लॉकचेन रिकॉर्ड' : 'On-Chain Ledger'}
               </h3>
               <div className="space-y-3.5">
                 <div>
-                  <span className="text-[9px] font-bold text-brand-textMuted uppercase">Blockchain Hash</span>
-                  <p className="text-xs font-mono font-bold text-brand-textPrimary break-all bg-slate-50 dark:bg-slate-950 p-2 rounded-lg border border-slate-150 mt-1">
+                  <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">Blockchain Hash</span>
+                  <p className="text-xs font-mono font-bold text-on-surface break-all bg-surface-container-low p-2 rounded-lg border border-outline-variant mt-1">
                     {displayCert.blockchain_hash}
                   </p>
                 </div>
                 
                 {displayCert.blockchain_tx_hash && (
-                  <div className="flex justify-between items-center pt-2.5 border-t border-slate-100 dark:border-slate-800">
-                    <span className="text-xs font-bold text-brand-textMuted">Transaction Proof</span>
+                  <div className="flex justify-between items-center pt-2.5 border-t border-outline-variant/30">
+                    <span className="text-xs font-bold text-on-surface-variant">Transaction Proof</span>
                     <BlockchainBadge txHash={displayCert.blockchain_tx_hash} />
                   </div>
                 )}
@@ -424,13 +418,16 @@ export default function Certificate() {
         </div>
       )}
 
-      {/* Historical registry ledger (Non-printable) */}
-      <div className="premium-card p-6 print:hidden">
-        <h3 className="text-lg font-bold text-brand-dark mb-4">{l.registryTitle}</h3>
+      {/* Historical registry ledger */}
+      <div className="bento-card print:hidden">
+        <div className="flex items-center justify-between mb-stack-lg">
+          <h3 className="font-headline-md text-headline-md">{l.registryTitle}</h3>
+          <span className="text-xs text-on-surface-variant font-semibold">{certificates.length} {lang === 'hi' ? 'कुल' : 'total'}</span>
+        </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-left text-sm border-collapse">
             <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-850 text-brand-textMuted text-xs font-bold uppercase tracking-wider">
+              <tr className="border-b border-outline-variant/30 text-on-surface-variant text-xs font-bold uppercase tracking-wider">
                 <th className="pb-3">{l.certRefLabel}</th>
                 <th className="pb-3">{l.issuedDate}</th>
                 <th className="pb-3">{l.monthlyAvg}</th>
@@ -438,28 +435,28 @@ export default function Certificate() {
                 <th className="pb-3 text-right">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-850">
+            <tbody className="divide-y divide-outline-variant/20">
               {certificates.map((c) => (
                 <tr 
                   key={c.id} 
                   onClick={() => { if (c.status === 'ready') setCurrentCert(c); }}
-                  className={`text-brand-textPrimary ${c.status === 'ready' ? 'cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/30' : ''}`}
+                  className={`text-on-surface transition-colors ${c.status === 'ready' ? 'cursor-pointer hover:bg-surface-container-low/50' : ''}`}
                 >
-                  <td className="py-4 font-bold font-mono text-brand-primary">{c.cert_ref}</td>
-                  <td className="py-4 text-xs text-brand-textMuted">
+                  <td className="py-4 font-bold font-mono text-primary text-xs">{c.cert_ref}</td>
+                  <td className="py-4 text-xs text-on-surface-variant">
                     {new Date(c.created_at).toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-US')}
                   </td>
-                  <td className="py-4 font-bold">{formatINR(c.monthly_avg || 32000)}</td>
-                  <td className="py-4 text-xs text-brand-textMuted">
+                  <td className="py-4 font-bold text-sm">{formatINR(c.monthly_avg || 32000)}</td>
+                  <td className="py-4 text-xs text-on-surface-variant">
                     {new Date(c.valid_until).toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-US')}
                   </td>
                   <td className="py-4 text-right">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
                       c.status === 'ready' 
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                        ? 'bg-secondary-container/20 text-on-secondary-container border-secondary-container' 
                         : c.status === 'generating' 
-                        ? 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse' 
-                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                        ? 'bg-tertiary-fixed/30 text-on-tertiary-fixed-variant border-tertiary-fixed-dim animate-pulse' 
+                        : 'bg-error-container/20 text-on-error-container border-error-container'
                     }`}>
                       {c.status}
                     </span>
@@ -470,7 +467,8 @@ export default function Certificate() {
           </table>
 
           {certificates.length === 0 && (
-            <div className="py-8 text-center text-sm text-brand-textMuted">
+            <div className="py-10 text-center text-sm text-on-surface-variant font-semibold">
+              <span className="material-symbols-outlined text-[48px] text-outline-variant block mb-3">description</span>
               {l.noCerts}
             </div>
           )}
