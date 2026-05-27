@@ -1,23 +1,38 @@
 import 'dotenv/config';
 
+// Hard-required: app cannot function without these
 const REQUIRED_ENV_VARS = [
   'SUPABASE_URL',
   'SUPABASE_SERVICE_ROLE_KEY',
   'RAZORPAY_KEY_ID',
   'RAZORPAY_KEY_SECRET',
+];
+
+// Optional: app has graceful runtime fallbacks for these
+// - POLYGON_RPC_URL / DEPLOYER_PRIVATE_KEY → blockchain simulation mode
+// - UPSTASH_REDIS_URL → in-process MemoryStore rate limiting + MockQueue
+const OPTIONAL_ENV_VARS = [
   'POLYGON_RPC_URL',
   'DEPLOYER_PRIVATE_KEY',
-  'UPSTASH_REDIS_URL'
+  'UPSTASH_REDIS_URL',
 ];
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-// In production, validate that all required environment variables are present
+// In production, validate that hard-required environment variables are present
 if (isProduction) {
   const missingVars = REQUIRED_ENV_VARS.filter(envVar => !process.env[envVar]);
   if (missingVars.length > 0) {
     throw new Error(
       `[Config Error] Critical environment variables are missing in production mode: ${missingVars.join(', ')}`
+    );
+  }
+
+  // Warn (but don't crash) if optional vars are missing — fallbacks will activate
+  const missingOptional = OPTIONAL_ENV_VARS.filter(envVar => !process.env[envVar]);
+  if (missingOptional.length > 0) {
+    console.warn(
+      `[Config Warning] Optional env vars not set — fallback modes will activate: ${missingOptional.join(', ')}`
     );
   }
 }
