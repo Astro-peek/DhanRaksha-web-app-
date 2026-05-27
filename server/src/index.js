@@ -1,3 +1,8 @@
+// Set WebSocket polyfill for Node.js 20 compatibility - must be before any other imports
+import ws from 'ws';
+global.WebSocket = ws;
+global.window = { WebSocket: ws };
+
 import express from 'express';
 import cors from 'cors';
 import * as Sentry from '@sentry/node';

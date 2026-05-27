@@ -1,10 +1,4 @@
 import 'dotenv/config';
-import WebSocket from 'isomorphic-ws';
-
-// Set WebSocket globally before importing Supabase
-global.WebSocket = WebSocket;
-global.window = { WebSocket: WebSocket };
-
 import { createClient } from '@supabase/supabase-js';
 
 // Instantiate administrative-level client with high privilege Service Role credentials
