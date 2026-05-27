@@ -10,7 +10,8 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- --- MIGRATION 002: USERS TABLE ---
 CREATE TABLE public.users (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  mobile VARCHAR(10) UNIQUE NOT NULL,
+  mobile VARCHAR(10) UNIQUE,
+  email VARCHAR(255),
   name VARCHAR(100),
   aadhaar_last4 VARCHAR(4),
   aadhaar_verified BOOLEAN DEFAULT false,
@@ -38,9 +39,19 @@ CREATE POLICY "Service role full access to users" ON public.users
 -- Auto-create user record when auth user is created
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  clean_mobile VARCHAR(10);
 BEGIN
-  INSERT INTO public.users (id, mobile)
-  VALUES (NEW.id, NEW.phone)
+  -- Strip country code if present (e.g., +91 to get 10 digits)
+  clean_mobile := CASE
+    WHEN NEW.phone LIKE '+91%' THEN SUBSTRING(NEW.phone FROM 4 FOR 10)
+    WHEN NEW.phone LIKE '91%' THEN SUBSTRING(NEW.phone FROM 3 FOR 10)
+    ELSE NEW.phone
+  END;
+  
+  -- Insert user record with either mobile or email
+  INSERT INTO public.users (id, mobile, email)
+  VALUES (NEW.id, clean_mobile, NEW.email)
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
