@@ -1,4 +1,9 @@
 import 'dotenv/config';
+import ws from 'ws';
+
+// Set WebSocket globally for Node.js 20 compatibility
+global.WebSocket = ws;
+
 import { createClient } from '@supabase/supabase-js';
 
 // Instantiate administrative-level client with high privilege Service Role credentials
@@ -17,6 +22,11 @@ export const supabaseAdmin = createClient(
     },
     db: {
       schema: 'public'
+    }
+  },
+  {
+    realtime: {
+      transport: ws
     }
   }
 );
