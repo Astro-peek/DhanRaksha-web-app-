@@ -146,7 +146,22 @@ export default function Certificate() {
   };
 
   const getChartData = (avgIncome) => {
-    const val = avgIncome || 32000;
+    // If no avgIncome provided, calculate from available certificates
+    if (!avgIncome && certificates.length > 0) {
+      const readyCerts = certificates.filter(c => c.status === 'ready' && c.monthly_avg);
+      if (readyCerts.length > 0) {
+        avgIncome = readyCerts.reduce((sum, c) => sum + c.monthly_avg, 0) / readyCerts.length;
+      }
+    }
+    
+    // If still no income data, use 0 to show empty state
+    const val = avgIncome || 0;
+    
+    // If val is 0, return empty array to show no data state
+    if (val === 0) {
+      return [];
+    }
+    
     return [
       { month: lang === 'hi' ? 'मार्च' : 'Mar', Income: Math.round(val * 0.95) },
       { month: lang === 'hi' ? 'अप्रैल' : 'Apr', Income: Math.round(val * 1.05) },

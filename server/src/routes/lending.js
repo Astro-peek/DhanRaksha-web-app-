@@ -7,9 +7,6 @@
  */
 
 import express from 'express';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import path from 'path';
 import { z } from 'zod';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -17,12 +14,40 @@ import { validate } from '../middleware/validate.js';
 
 const router = express.Router();
 
-// ── Load static lender dataset once at startup ─────────────────────────────
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const LENDERS = JSON.parse(
-  readFileSync(path.resolve(__dirname, '../data/lenders.json'), 'utf8')
-);
-const LENDER_MAP = Object.fromEntries(LENDERS.map(l => [l.id, l]));
+// ── Fetch lenders from database ─────────────────────────────────────────────
+const fetchLenders = async () => {
+  try {
+    const { data: lenders, error } = await supabaseAdmin
+      .from('lenders')
+      .select('*')
+      .eq('approved', true);
+    
+    if (error) throw error;
+    return lenders || [];
+  } catch (err) {
+    console.error('Error fetching lenders from database:', err);
+    return [];
+  }
+};
+
+// Cache lenders in memory for performance (refresh every 5 minutes)
+let cachedLenders = [];
+let lastFetch = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+const getLenders = async () => {
+  const now = Date.now();
+  if (!cachedLenders.length || now - lastFetch > CACHE_DURATION) {
+    cachedLenders = await fetchLenders();
+    lastFetch = now;
+  }
+  return cachedLenders;
+};
+
+const getLenderMap = async () => {
+  const lenders = await getLenders();
+  return Object.fromEntries(lenders.map(l => [l.id, l]));
+};
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
 const trackClickSchema = z.object({
@@ -75,7 +100,8 @@ router.get('/lenders', requireAuth, async (req, res, next) => {
     const purpose = req.query.purpose || null;
     const acceptsGigCert = req.query.accepts_gig_cert === 'true';
 
-    let filtered = LENDERS.filter(l => l.approved);
+    const lenders = await getLenders();
+    let filtered = lenders.filter(l => l.approved);
 
     // Filter by loan amount range
     if (amount !== null && !isNaN(amount)) {
@@ -118,7 +144,8 @@ router.post('/track-click', requireAuth, validate(trackClickSchema), async (req,
   const { lender_id, loan_amount, loan_purpose } = req.body;
 
   try {
-    const lender = LENDER_MAP[lender_id];
+    const lenderMap = await getLenderMap();
+    const lender = lenderMap[lender_id];
     if (!lender) {
       return res.status(404).json({ error: 'Lender not found', code: 'LENDER_NOT_FOUND' });
     }
@@ -166,9 +193,10 @@ router.get('/applications', requireAuth, async (req, res, next) => {
     if (error) throw error;
 
     // Attach live lender metadata
+    const lenderMap = await getLenderMap();
     const enriched = applications.map(app => ({
       ...app,
-      lender: LENDER_MAP[app.lender_id] || null
+      lender: lenderMap[app.lender_id] || null
     }));
 
     return res.json({ success: true, applications: enriched });
@@ -215,7 +243,8 @@ router.post('/webhook-disburse', async (req, res, next) => {
     }
 
     // Calculate commission
-    const lender = LENDER_MAP[lender_id] || { commission_pct: app.commission_pct || 0 };
+    const lenderMap = await getLenderMap();
+    const lender = lenderMap[lender_id] || { commission_pct: app.commission_pct || 0 };
     const commissionAmount = Math.round(disbursed_amount * (lender.commission_pct / 100) * 100) / 100;
 
     // Update application

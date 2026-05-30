@@ -51,6 +51,7 @@ export default function ChitFund() {
 
   const [activeTab, setActiveTab] = useState('my-groups');
   const [groups, setGroups] = useState([]);
+  const [availableGroups, setAvailableGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -147,8 +148,21 @@ export default function ChitFund() {
     }
   };
 
+  // Fetch available groups to join (forming status)
+  const fetchAvailableGroups = async () => {
+    try {
+      const res = await api.get('/api/chitfund/groups?filter=forming');
+      if (res.data?.success) {
+        setAvailableGroups(res.data.groups || []);
+      }
+    } catch (err) {
+      console.error('Error fetching available chit groups:', err);
+    }
+  };
+
   useEffect(() => {
     fetchGroups();
+    fetchAvailableGroups();
   }, []);
 
   // Join group handler
@@ -426,77 +440,61 @@ export default function ChitFund() {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-                  {/* Card 1 */}
-                  <div className="bg-surface-container-lowest rounded-3xl border border-outline-variant p-0 overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow group text-left">
-                    <div className="h-28 bg-gradient-to-br from-primary-container to-primary relative overflow-hidden p-6 flex flex-col justify-end">
-                      <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-white text-[9px] font-bold uppercase">Open</div>
-                      <h3 className="text-white text-md font-bold">Daily Wage Savers</h3>
-                      <p className="text-white/80 text-xs font-bold">Mumbai Local Circle</p>
+                  {availableGroups.length > 0 ? (
+                    availableGroups.map((group) => {
+                      const slotsFilled = group.member_count || 0;
+                      const totalSlots = group.member_count || 0;
+                      const fillPercent = totalSlots > 0 ? Math.round((slotsFilled / totalSlots) * 100) : 0;
+                      const isPrimary = availableGroups.indexOf(group) % 2 === 0;
+                      
+                      return (
+                        <div key={group.id} className="bg-surface-container-lowest rounded-3xl border border-outline-variant p-0 overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow group text-left">
+                          <div className={`h-28 bg-gradient-to-br ${isPrimary ? 'from-primary-container to-primary' : 'from-tertiary-container to-tertiary'} relative overflow-hidden p-6 flex flex-col justify-end`}>
+                            <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-white text-[9px] font-bold uppercase">
+                              {group.status === 'forming' ? 'Open' : 'Limited'}
+                            </div>
+                            <h3 className="text-white text-md font-bold">{group.name}</h3>
+                            <p className="text-white/80 text-xs font-bold">{group.description || 'Community Circle'}</p>
+                          </div>
+                          <div className="p-6 flex flex-col gap-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <p className="text-on-surface-variant text-[10px] font-bold uppercase">Contribution</p>
+                                <p className={`font-extrabold text-sm ${isPrimary ? 'text-primary' : 'text-tertiary'}`}>
+                                  {formatINR(group.contribution_per_member)}<span className="text-xs font-bold">/mo</span>
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-on-surface-variant text-[10px] font-bold uppercase">Duration</p>
+                                <p className={`font-extrabold text-sm ${isPrimary ? 'text-primary' : 'text-tertiary'}`}>
+                                  {group.duration_months} Months
+                                </p>
+                              </div>
+                            </div>
+                            <div className="bg-surface-container-low rounded-2xl p-4 border border-outline-variant/20">
+                              <div className="flex justify-between items-center mb-1.5 text-xs font-bold">
+                                <span className="text-on-surface-variant">Slots filled</span>
+                                <span className="text-on-surface">{slotsFilled}/{totalSlots}</span>
+                              </div>
+                              <div className="w-full bg-outline-variant/40 h-1.5 rounded-full overflow-hidden">
+                                <div className={`${isPrimary ? 'bg-secondary' : 'bg-tertiary'} h-full rounded-full`} style={{ width: `${fillPercent}%` }}></div>
+                              </div>
+                            </div>
+                            <button 
+                              onClick={() => { setActiveTab('join'); }}
+                              className={`w-full bg-surface-container-high py-3 rounded-xl font-bold text-xs ${isPrimary ? 'text-primary group-hover:bg-primary' : 'text-tertiary group-hover:bg-tertiary'} group-hover:text-white transition-all active:scale-95 cursor-pointer`}
+                            >
+                              {l.viewDetailsJoin}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="col-span-full text-center py-12 text-on-surface-variant text-sm">
+                      No chit circles available to join at the moment. Create your own or check back later!
                     </div>
-                    <div className="p-6 flex flex-col gap-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-on-surface-variant text-[10px] font-bold uppercase">Contribution</p>
-                          <p className="font-extrabold text-sm text-primary">₹2,000<span className="text-xs font-bold">/mo</span></p>
-                        </div>
-                        <div>
-                          <p className="text-on-surface-variant text-[10px] font-bold uppercase">Duration</p>
-                          <p className="font-extrabold text-sm text-primary">12 Months</p>
-                        </div>
-                      </div>
-                      <div className="bg-surface-container-low rounded-2xl p-4 border border-outline-variant/20">
-                        <div className="flex justify-between items-center mb-1.5 text-xs font-bold">
-                          <span className="text-on-surface-variant">Slots filled</span>
-                          <span className="text-on-surface">12/20</span>
-                        </div>
-                        <div className="w-full bg-outline-variant/40 h-1.5 rounded-full overflow-hidden">
-                          <div className="bg-secondary h-full w-[60%] rounded-full"></div>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => { setActiveTab('join'); }}
-                        className="w-full bg-surface-container-high py-3 rounded-xl font-bold text-xs text-primary group-hover:bg-primary group-hover:text-white transition-all active:scale-95 cursor-pointer"
-                      >
-                        {l.viewDetailsJoin}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Card 2 */}
-                  <div className="bg-surface-container-lowest rounded-3xl border border-outline-variant p-0 overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow group text-left">
-                    <div className="h-28 bg-gradient-to-br from-tertiary-container to-tertiary relative overflow-hidden p-6 flex flex-col justify-end">
-                      <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-white text-[9px] font-bold uppercase">Limited</div>
-                      <h3 className="text-white text-md font-bold">Festival Fund</h3>
-                      <p className="text-white/80 text-xs font-bold">Deepavali Prep</p>
-                    </div>
-                    <div className="p-6 flex flex-col gap-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-on-surface-variant text-[10px] font-bold uppercase">Contribution</p>
-                          <p className="font-extrabold text-sm text-tertiary">₹1,500<span className="text-xs font-bold">/mo</span></p>
-                        </div>
-                        <div>
-                          <p className="text-on-surface-variant text-[10px] font-bold uppercase">Duration</p>
-                          <p className="font-extrabold text-sm text-tertiary">10 Months</p>
-                        </div>
-                      </div>
-                      <div className="bg-surface-container-low rounded-2xl p-4 border border-outline-variant/20">
-                        <div className="flex justify-between items-center mb-1.5 text-xs font-bold">
-                          <span className="text-on-surface-variant">Slots filled</span>
-                          <span className="text-on-surface">18/20</span>
-                        </div>
-                        <div className="w-full bg-outline-variant/40 h-1.5 rounded-full overflow-hidden">
-                          <div className="bg-tertiary h-full w-[90%] rounded-full"></div>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => { setActiveTab('join'); }}
-                        className="w-full bg-surface-container-high py-3 rounded-xl font-bold text-xs text-tertiary group-hover:bg-tertiary group-hover:text-white transition-all active:scale-95 cursor-pointer"
-                      >
-                        {l.viewDetailsJoin}
-                      </button>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </section>
 
